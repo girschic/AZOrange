@@ -60,6 +60,16 @@ def getSimDescriptors(actives, data, methods):
 					tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_fps(a, instance))
 					instance[atts[att_idx]] = tmp		
 				att_idx += 1	
+				
+		elif m == 'rdk_morgan_features_fps':
+			count = 1
+			for a in actives:
+				attname = m + '(active_'+ str(count)+ ')'
+				for j in range(len(newdata)):
+					instance = newdata[j]
+					tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_features_fps(a, instance))
+					instance[atts[att_idx]] = tmp		
+				att_idx += 1	
 					
 		elif m == 'rdk_atompair_fps':
 			count = 1
@@ -112,7 +122,7 @@ def orng_sim_rdk_MACCS_keys(smile_active, train_instance):
 			
 def orng_sim_rdk_morgan_fps(smile_active, train_instance):
 	""" calculate the fingerprint similarity using the RDK morgan fingerprints
-		(circular fingerprints)
+		(circular fingerprints, ECFP, connectivity-based invariant)
 		input are a smiles string and a orange data instance
 		returned is a similaritie value
 	"""
@@ -120,8 +130,24 @@ def orng_sim_rdk_morgan_fps(smile_active, train_instance):
 	if not smilesName: return None
 	smile_train = str(train_instance[smilesName].value)
 	
-	fp_A = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_active),4)
-	fp_T = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_train),4)
+	fp_A = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_active),2)
+	fp_T = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_train),2)
+	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
+	
+	return sim
+	
+def orng_sim_rdk_morgan_features_fps(smile_active, train_instance):
+	""" calculate the fingerprint similarity using the RDK morgan fingerprints
+		(circular fingerprints, FCFP, feature-based invariant)
+		input are a smiles string and a orange data instance
+		returned is a similaritie value
+	"""
+	smilesName = getSMILESAttr(train_instance)
+	if not smilesName: return None
+	smile_train = str(train_instance[smilesName].value)
+	
+	fp_A = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_active),2,useFeatures=True)
+	fp_T = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_train),2,useFeatures=True)
 	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
 	
 	return sim

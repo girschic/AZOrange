@@ -2,11 +2,10 @@ import unittest
 import os
 
 import orange
-from AZutilities import dataUtilities
 from AZutilities import getStructuralDesc
 import AZOrangeConfig as AZOC
 
-class evalUtilitiesTest(unittest.TestCase):
+class StructuralDescTest(unittest.TestCase):
 
     def setUp(self):
         qsarDataPath = os.path.join(AZOC.AZORANGEHOME,"tests/source/data/QSAR_10mols.tab")
@@ -48,6 +47,6 @@ class evalUtilitiesTest(unittest.TestCase):
 
 		
 if __name__ == "__main__":
-    suite = unittest.TestLoader().loadTestsFromTestCase(evalUtilitiesTest)
+    suite = unittest.TestLoader().loadTestsFromTestCase(StructuralDescTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
     #unittest.main()
