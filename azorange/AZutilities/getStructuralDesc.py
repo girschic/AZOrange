@@ -11,7 +11,8 @@ import time
 import random
 import string
 
-import subprocess
+#import subprocess
+from subprocess import Popen, PIPE
 import tempfile
 import orange
 from cinfony import rdk
@@ -108,48 +109,46 @@ def makeTempFiles(data):
 		w.write(m)
 
 		count_mols+=1
-	print "Number of molecules that could not be read: ", count
-	print "Number of molecules read: ", count_mols
+	#print "Number of molecules that could not be read: ", count
+	#print "Number of molecules read: ", count_mols
 
 	return sdf_mols, temp_occ
 	
+
 def getSMARTSrecalcDesc(data,smarts):
-	""" Calculates structural descriptors for test and training data.
+    """ Calculates structural descriptors for test and training data.
 		In other words, checks for the substructure occurrence (0/1) in the 
 		test or prediction molecules. Uses RDK.
 		Expects the test/prediction data and a list of SMARTS strings.
 		Returns the data including the new features. 
-	"""
-	
-	smilesName = getSMILESAttr(data)
-	if not smilesName: return None
+    """
+    smilesName = getSMILESAttr(data)
+    if not smilesName: return None
     		
-	atts = []
-	for attr in smarts:
-		#atts.append(orange.EnumVariable(attr.name, values=['0','1']))
-		atts.append(orange.FloatVariable(attr.name, numberOfDecimals=1))
+    atts = []
+    for attr in smarts:
+        atts.append(orange.FloatVariable(attr.name, numberOfDecimals=1))
+
+    newdomain = orange.Domain(data.domain.attributes + atts, data.domain.classVar)
+    newdata = orange.ExampleTable(newdomain, data)
+    	
+    count = 0
+    for a in newdata:
+        smile = str(a[smilesName].value)
+        m = rdk.Chem.MolFromSmiles(smile)
+        if m is None: 
+            count += 1
+            continue
 		
-	newdomain = orange.Domain(data.domain.attributes + atts, data.domain.classVar)
-	newdata = orange.ExampleTable(newdomain, data)
-		
-	count = 0
-	for a in newdata:
-		smile = str(a[smilesName].value)
-		m = rdk.Chem.MolFromSmiles(smile)
-		if m is None: 
-			count += 1
-			continue
-		
-		for b in range(len(smarts)):
-			#print b.name
-			patt = rdk.Chem.MolFromSmarts(smarts[b].name)
-			if m.HasSubstructMatch(patt):
-				tmp = orange.Value(atts[b],1.0)
-			else:
-				tmp = orange.Value(atts[b],0.0)
-			a[atts[b]] = tmp
+        for b in range(len(smarts)):
+            patt = rdk.Chem.MolFromSmarts(smarts[b].name)
+            if m.HasSubstructMatch(patt):
+                tmp = orange.Value(atts[b],1.0)
+            else:
+                tmp = orange.Value(atts[b],0.0)
+            a[atts[b]] = tmp
 				
-	return newdata
+    return newdata
 	
 	
 def getSMILESAttr(data):
@@ -167,8 +166,10 @@ def getSMILESAttr(data):
 	
 	
 def ftm(temp_occ, freq, mols):
-	ftm_opt = ' -f ' + str(freq) + ' -o ' + temp_occ	+ ' ' + mols
-	ftm_call = FTM + ftm_opt
-	print ftm_call
-	p = subprocess.call(ftm_call, shell=True)
+    ftm_opt = ' -f ' + str(freq) + ' -o ' + temp_occ	+ ' ' + mols
+    cmd = FTM + ftm_opt
+    #print cmd
+    p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
+    stdout = p.communicate()
+    #	p = subprocess.call(ftm_call, shell=True)
 
