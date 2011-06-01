@@ -3,7 +3,7 @@ import os
 import time
 
 from AZutilities import dataUtilities
-from AZutilities import getCinfonyDesc
+from AZutilities import getSimBoostedQSAR
 import AZOrangeConfig as AZOC
 
 class evalUtilitiesTest(unittest.TestCase):

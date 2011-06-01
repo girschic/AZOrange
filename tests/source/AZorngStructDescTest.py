@@ -1,27 +1,52 @@
 import unittest
 import os
-import time
 
+import orange
 from AZutilities import dataUtilities
-from AZutilities import getCinfonyDesc
+from AZutilities import getStructuralDesc
 import AZOrangeConfig as AZOC
 
 class evalUtilitiesTest(unittest.TestCase):
 
     def setUp(self):
-        
-        smiDataPath = os.path.join(AZOC.AZORANGEHOME,"tests/source/data/mol.smi")
-        self.smiData = dataUtilities.loadSMI(smiDataPath)
-        
-	def test_makeTmpFile(self):
-		
-		
-	def test_ftm(self):
-		
-		
-	def test_smartsRecalc(self):	
-		
+        qsarDataPath = os.path.join(AZOC.AZORANGEHOME,"tests/source/data/QSAR_10mols.tab")
+        self.data = orange.ExampleTable(qsarDataPath)
 
+                
+    def test_mkTMPfile(self):
+        """Test if temporary SDF files can be written """
+        import tempfile
+        from subprocess import Popen, PIPE
+        from cinfony import rdk
+				
+        sdf_mols, temp_occ = getStructuralDesc.makeTempFiles(self.data)
+        cmd = 'cat ' + sdf_mols.name + ' | grep \'\$\$\$\$\' | wc'
+        p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
+        stdout = p.communicate()
+        self.assertEqual(stdout[0].strip(),"10      10      50")
+	
+		
+    def test_ftm(self):
+        """Test if ftm is running properly"""
+        result = getStructuralDesc.getFTMDescResult(self.data, 0.9)
+        expected_atts = 29
+        expected_data_length = 30
+        self.assertEqual(expected_atts,len(result.domain.attributes))
+        self.assertEqual(expected_data_length, len(result[0]))
+
+
+    def test_smartsRecalc(self):
+        """Test structural feature recalculation"""
+        result = getStructuralDesc.getFTMDescResult(self.data, 0.9)
+        smarts = result.domain.attributes[len(self.data.domain.attributes):]
+        
+        result2 = getStructuralDesc.getSMARTSrecalcDesc(self.data,smarts)
+                
+        #expected_atts = 3
+        self.assertEqual(len(result),len(result2))
+	
+
+		
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(evalUtilitiesTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
