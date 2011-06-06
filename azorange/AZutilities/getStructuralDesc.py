@@ -165,6 +165,41 @@ def getSMILESAttr(data):
         return smilesName
 	
 	
+
+def cross_validation_plusFTM(data, learners, k, f):
+    """
+    Perform k-fold cross validation and add FTM features (minsup = f) in each fold 
+    The FTM features for each training fold are recalculated for the test fold (NO FTM run!)
+    """
+    acc = [0.0]*len(learners)
+    selection = orange.MakeRandomIndicesCV(data, folds=k)
+    for test_fold in range(k):
+        train_data = data.select(selection, test_fold, negate=1)
+#        print "len->train: ",
+#        print len(train_data)
+        # add ftm features 
+        train_data_ftm = getStructuralDesc.getFTMDescResult(train_data, f)
+        
+        # recalc and add ftm features to test fold
+        test_data = data.select(selection, test_fold)
+        smarts = train_data_ftm.domain.attributes[len(train_data.domain.attributes):]
+        test_data_ftm = getStructuralDesc.getSMARTSrecalcDesc(test_data,smarts)
+
+        
+                
+        classifiers = []
+        for l in learners:
+            classifiers.append(l(train_data_ftm))
+        acc1 = accuracy(test_data_ftm, classifiers)
+        print "%d: %s" % (test_fold+1, acc1)
+        for j in range(len(learners)):
+            acc[j] += acc1[j]
+    for j in range(len(learners)):
+        acc[j] = acc[j]/k
+    return acc
+    
+    	
+	
 def ftm(temp_occ, freq, mols):
     ftm_opt = ' -f ' + str(freq) + ' -o ' + temp_occ	+ ' ' + mols
     cmd = FTM + ftm_opt
@@ -173,3 +208,22 @@ def ftm(temp_occ, freq, mols):
     stdout = p.communicate()
     #	p = subprocess.call(ftm_call, shell=True)
 
+"""
+Used as a template for cross_validation_plusFTM
+"""
+#def cross_validation(data, learners, k=10):
+#    acc = [0.0]*len(learners)
+#    selection = orange.MakeRandomIndicesCV(data, folds=k)
+#    for test_fold in range(k):
+#        train_data = data.select(selection, test_fold, negate=1)
+#        test_data = data.select(selection, test_fold)
+#        classifiers = []
+#        for l in learners:
+#            classifiers.append(l(train_data))
+#        acc1 = accuracy(test_data, classifiers)
+#        print "%d: %s" % (test_fold+1, acc1)
+#        for j in range(len(learners)):
+#            acc[j] += acc1[j]
+#    for j in range(len(learners)):
+#        acc[j] = acc[j]/k
+#    return acc
