@@ -15,8 +15,10 @@ import string
 from subprocess import Popen, PIPE
 import tempfile
 import orange
+import orngTest, orngStat
 from cinfony import rdk
 import AZOrangeConfig as AZOC
+from AZutilities import dataUtilities
 
 #FTM = os.path.join(os.environ["HOME"], "OpenTox", "serverFiles", "FTM", "ftm")
 #FTM = os.path.join("/home/kgvf414/projects/SimBoostedQSAR/FTM", "ftm")
@@ -166,64 +168,103 @@ def getSMILESAttr(data):
 	
 	
 
-def cross_validation_plusFTM(data, learners, k, f):
+def cross_validation_plusFTM(data, learners, k, f, att_list):
     """
     Perform k-fold cross validation and add FTM features (minsup = f) in each fold 
     The FTM features for each training fold are recalculated for the test fold (NO FTM run!)
+    att_list - is the
+    list of attributes that will be removed before learning 
+    For reference see also:
+    http://orange.biolab.si/doc/ofb/accuracy5.py
+    http://orange.biolab.si/doc/ofb/c_performance.htm
     """
     acc = [0.0]*len(learners)
+    roc = [0.0]*len(learners)
     selection = orange.MakeRandomIndicesCV(data, folds=k)
     for test_fold in range(k):
         train_data = data.select(selection, test_fold, negate=1)
 #        print "len->train: ",
 #        print len(train_data)
         # add ftm features 
-        train_data_ftm = getStructuralDesc.getFTMDescResult(train_data, f)
+        train_data_ftm = getFTMDescResult(train_data, f)
+	minsupStr = str(f).replace(".","")
+        filename = data.name + "_ftm_" + minsupStr + "_" + str(test_fold) + ".tab"
+        train_data.save(filename)
+        train_scaled = dataUtilities.attributeDeselectionData(train_data_ftm, att_list)
         
         # recalc and add ftm features to test fold
         test_data = data.select(selection, test_fold)
         smarts = train_data_ftm.domain.attributes[len(train_data.domain.attributes):]
-        test_data_ftm = getStructuralDesc.getSMARTSrecalcDesc(test_data,smarts)
-
-        
+        print "# FTM features: ",
+        print len(smarts)
+        test_data_ftm = getSMARTSrecalcDesc(test_data,smarts)
+        test_scaled = dataUtilities.attributeDeselectionData(test_data_ftm, att_list)
                 
         classifiers = []
         for l in learners:
-            classifiers.append(l(train_data_ftm))
-        acc1 = accuracy(test_data_ftm, classifiers)
+            classifiers.append(l(train_scaled))
+        acc1 = accuracy(test_scaled, classifiers)
+        auroc1 = aroc(test_scaled, classifiers)
         print "%d: %s" % (test_fold+1, acc1)
+        print "%d: %s" % (test_fold+1, auroc1)
         for j in range(len(learners)):
             acc[j] += acc1[j]
+            roc[j] += auroc1[j]
     for j in range(len(learners)):
         acc[j] = acc[j]/k
-    return acc
+        roc[j] = roc[j]/k
+    return acc, roc
     
-    	
+
+def accuracy(test_data, classifiers):
+    """
+    Taken from: 
+    http://orange.biolab.si/doc/ofb/accuracy5.py
+    TBD---other measures---reusable stuff??
+    """
+    correct = [0.0]*len(classifiers)
+    for ex in test_data:
+        for i in range(len(classifiers)):
+            if classifiers[i](ex) == ex.getclass():
+                correct[i] += 1
+    for i in range(len(correct)):
+        correct[i] = correct[i] / len(test_data)
+    return correct	
+    
+    
+def aroc(data, classifiers):
+    """
+    Taken from: 
+    http://orange.biolab.si/doc/ofb/roc.py
+    """
+    ar = []
+    for c in classifiers:
+        p = []
+        for d in data:
+            p.append(c(d, orange.GetProbabilities)[0])
+        correct = 0.0; valid = 0.0
+        for i in range(len(data)-1):
+            for j in range(i+1,len(data)):
+                if data[i].getclass() <> data[j].getclass():
+                    valid += 1
+                    if p[i] == p[j]:
+                        correct += 0.5
+                    elif data[i].getclass() == 0:
+                        if p[i] > p[j]:
+                            correct += 1.0
+                    else:
+                        if p[j] > p[i]:
+                            correct += 1.0
+        ar.append(correct / valid)
+    return ar
 	
 def ftm(temp_occ, freq, mols):
+    """
+    Actual method that calls FTM on the command line
+    """
     ftm_opt = ' -f ' + str(freq) + ' -o ' + temp_occ	+ ' ' + mols
     cmd = FTM + ftm_opt
     #print cmd
     p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
     stdout = p.communicate()
     #	p = subprocess.call(ftm_call, shell=True)
-
-"""
-Used as a template for cross_validation_plusFTM
-"""
-#def cross_validation(data, learners, k=10):
-#    acc = [0.0]*len(learners)
-#    selection = orange.MakeRandomIndicesCV(data, folds=k)
-#    for test_fold in range(k):
-#        train_data = data.select(selection, test_fold, negate=1)
-#        test_data = data.select(selection, test_fold)
-#        classifiers = []
-#        for l in learners:
-#            classifiers.append(l(train_data))
-#        acc1 = accuracy(test_data, classifiers)
-#        print "%d: %s" % (test_fold+1, acc1)
-#        for j in range(len(learners)):
-#            acc[j] += acc1[j]
-#    for j in range(len(learners)):
-#        acc[j] = acc[j]/k
-#    return acc

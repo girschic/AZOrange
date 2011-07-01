@@ -4,6 +4,8 @@ from AZutilities import dataUtilities
 import AZLearnersParamsConfig
 from AZutilities import evalUtilities
 from AZutilities import miscUtilities
+from AZutilities import getStructuralDesc
+
 import orngTest, orngStat
 import os
 
@@ -129,4 +131,104 @@ class AccWOptParamGetter():
         if self.verbose > 0: print "AccWOptParamGetter!Results: ",results, "\n res = ",res
         return res
 
+
+    def getAcc_with_structDesc(self, algo, minsup, att_list):
+        """ Same as getAcc but calculating structural Descriptors in each training fold 
+            parameters:
+                algo - key for the structural feature generation algorithm
+                minsup - minimum support for the algorithm
+                atts - attributes to be removed before learning (e.g. meta etc...)
+            ===
+            For regression problems, it returns the RMSE and the R2 
+            For Classification problems, it returns CA and the ConfMat
+            The return is made in a Dict: {"RMSE":0.2,"R2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
+            For the EvalResults not supported for a specific learner/datase, the respective result will be None
+            It some error occurred, the respective values in the Dict will be None
+        """
+        if not self.__areInputsOK():
+            return None
+        res = {"RMSE":None,"R2":None,"CA":None,"CM":None}
+        
+        print "Algo: ",
+        print algo
+        print "MinSup: ",
+        print minsup
+        
+        # Set the response type
+        responseType =  self.data.domain.classVar.varType == orange.VarTypes.Discrete and "Classification"  or "Regression"
+        
+
+        #Create the Train and test sets
+        DataIdxs = dataUtilities.SeedDataSampler(self.data, self.nExtFolds) 
+        
+        #Var for saving each Fols result
+        results = []
+
+        for foldN in range(self.nExtFolds):
+            trainData = self.data.select(DataIdxs[foldN],negate=1)
+            # add structural descriptors to the training data (TG)
+            if (algo == "FTM"):
+                trainData_ftm = getStructuralDesc.getFTMDescResult(trainData, minsup)
+                trainData_ftm_scaled = dataUtilities.attributeDeselectionData(trainData_ftm, att_list)
+            
+            runPath = miscUtilities.createScratchDir(desc = "AccWOptParam")
+            trainData_ftm_scaled.save(os.path.join(runPath,"trainData_ftm.tab"))
+            
+            testData = self.data.select(DataIdxs[foldN])
+            # calculate the feature values for the test data (TG)
+            if (algo == "FTM"):
+                smarts = trainData_ftm.domain.attributes[len(trainData.domain.attributes):]
+                testData_ftm = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
+                testData_ftm_scaled = dataUtilities.attributeDeselectionData(testData_ftm, att_list)
+
+            paramOptUtilities.optimizeSelectedParam(
+                learner = self.learner, 
+                learnerName = self.learnerName,
+                trainDataFile = os.path.join(runPath,"trainData_ftm.tab"), 
+                paramList = self.paramList, 
+                responseType = responseType, 
+                grid = False, 
+                useGrid = False, 
+                verbose = 0, 
+                queueType = "batch.q", 
+                runPath = runPath, 
+                nExtFolds = None, 
+                nFolds = self.nInnerFolds)
+            if not self.learner.optimized:
+                print "The learner was not optimized."
+                return None
+            miscUtilities.removeDir(runPath) 
+            #Train the model
+            model = self.learner(trainData_ftm_scaled)
+            #Test teh model
+            if responseType == "Classification":
+                results.append((evalUtilities.getClassificationAccuracy(testData_ftm_scaled, model), evalUtilities.getConfMat(testData_ftm_scaled, model) ) )
+            else:
+                results.append((evalUtilities.getRMSE(testData_ftm_scaled, model), evalUtilities.getRsqrt(testData_ftm_scaled, model) ) )
+
+        #Calculate the average of results
+        #Compute the first result (CA or RMSE)
+        if responseType == "Classification":
+            resName = "CA"
+        else:
+            resName = "RMSE"
+        res[resName] = 0.0
+        for r in results:
+            res[resName] += r[0]
+        res[resName] = res[resName] / self.nExtFolds
+        #Compute the second result (ConfMat or R2)
+        if responseType == "Classification":
+            res["CM"] = results[0][1]                      # Get the first ConfMat
+            for r in results[1:]:
+                for Lidx,line in enumerate(r[1]):
+                    for idx,val in enumerate(line):
+                        res["CM"][Lidx][idx] = res["CM"][Lidx][idx] + val   #Add each same ConfMat position
+        else:
+            res["R2"] = 0.0
+            for r in results:
+                res["R2"] += r[1]
+            res["R2"] = res["R2"] / self.nExtFolds
+
+        if self.verbose > 0: print "AccWOptParamGetter!Results: ",results, "\n res = ",res
+        return res
 
