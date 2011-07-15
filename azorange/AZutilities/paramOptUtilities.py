@@ -41,7 +41,7 @@ class Appspack:
         self.np = None                  # number of processors to use when using MPI
         self.usedMPI = False            # Flag indicating if last optimization done was made using MPI version of appspack
         self.advancedMPIoptions = ""    # Other MPI valid options that user might want to set.
-        self.learner = None             # The Learner to be optimized
+        self.learner = None             # The Learner to be optimize
         self.dataSet = ""               # the PATH for the dataset to use for optimization
         self.runPath = "./"             # the runPath for the optimization
         self.verbose = 0                # Verbose Flag
@@ -53,12 +53,14 @@ class Appspack:
         self.useGridSearchFirst = False  # Flag indicating if GridSearch is to be performed to define the initial point of appspack search. If false, the midrange point will be used
         self.nExtFolds = None            # The number of folds to use in a loop over CV with different seeds. To reduce the 
                                          # influence of data sampling on the generalization accuracy of each model parameter point.
-        self.useStd = True               # Do not select optimized parameter unless the accuracy differenc is significant.
+        self.useStd = True               # Do not select optimize parameter unless the accuracy differenc is significant.
         # Append arguments to the __dict__ member variable 
         self.__dict__.update(kwds)
 
 
         # Non-User defined vars
+        self.nIntRes = 0                # Number of intermediate results in the IndRes file. Muste be >= 2 and for optimization Success must be >2
+        self.noParams2Opt = False       # Flag indicating that the parameters to optimiza have not enouth possible values
         self.parameters = None          # All the optimization parameters defined by the user in useParameters. 
                                         #     If not defined, they will be the same as the origParameters
         self.origParameters = None      # All the optimization parameters present in the static AZLearnersParamsConfig.py file
@@ -254,7 +256,7 @@ class Appspack:
             self.learner.nActVars = -1
             classifier = self.learner(data)
             if classifier.nActVars == None or classifier.nActVars == -1 or classifier.nActVars == 0:
-                print "ERROR: Couls not optimize R mTry (nActVars)"
+                print "ERROR: Could not optimize R mTry (nActVars)"
                 return None
             self.learner.nActVars = classifier.nActVars 
             if hasattr(self.learner, "setattr"):
@@ -301,11 +303,19 @@ class Appspack:
                     return self.appspackPID
         
     def assignTunedParameters(self):
-
+        optimized = False
         if self.learner.optimized:
-            tunedParameters = self.processAppspackResults()
+            optimized = True
+            raise Exeption("Learner should not be optimized already! Check method Appspack::assignTunedParameters() in paramOptUtilities.py")
+            tunedParameters = self.processAppspackResults()  # Deprecated. will not be called!
         else:
             tunedParameters = self.processIntResResults()
+            if self.nIntRes > 2:
+                optimized = True
+            elif self.nIntRes == 2 and self.noParams2Opt:
+                    optimized = True
+                    print "WARNING: Appspack may had print some error message since there are parameters without enough possible values to optimize."
+                    print "         Optimization will though be made among the default and mid-range points."
 
         if tunedParameters == None:
             self.tunedParameters = "Could not optimize the parameters"
@@ -342,9 +352,9 @@ class Appspack:
         if self.verbose > 0: print "tunedParameters = ", tunedParameters
         #optimization was successfull, so set "optimized" to true
         if hasattr(self.learner, "setattr"):
-            self.learner.setattr("optimized", True)
+            self.learner.setattr("optimized", optimized)
         else:
-            setattr(self.learner, "optimized", True)
+            setattr(self.learner, "optimized", optimized)
         self.tunedParameters = tunedParameters
 
     def getTunedParameters(self):
@@ -443,6 +453,7 @@ print cPickle.dumps(eval(evalMethod)(res)[0])
         resDomain = intResTxt.pop(0).split()
         #Convert the intResTxt into splited strings
         intRes = [line.split() for line in intResTxt]
+        self.nIntRes = len(intRes)
         #ADD THE STDevalRes variable before start processing the intRes file
         resDomain.insert(-1,"STDevalRes")
         for idx,line in enumerate(intRes):
@@ -499,7 +510,7 @@ print cPickle.dumps(eval(evalMethod)(res)[0])
         else:
             selectOptParam = True
 
-        if self.verbose > 0: print "The optimized parameters are selected: "+str(selectOptParam)
+        if self.verbose > 0: print "The optimize parameters are selected: "+str(selectOptParam)
 
         # get the learner parameters used on that best point or the defautl parameters
         optParameters = {}
@@ -665,6 +676,13 @@ print cPickle.dumps(eval(evalMethod)(res)[0])
             if "DNE" in upperVector or "DNE" in lowerVector:
                 if self.verbose > 0: print "ERROR: DNE not permited in range vectors"
                 return None
+
+            # Test for presence of one-value parameter range
+            # We will still run Appspack in order to finalize optimization and report the results for the default and mid-range points.
+            for idx,Uv in enumerate(upperVector):
+                if Uv == lowerVector[idx]:
+                    self.noParams2Opt = True
+                    break
 
             #evaluate the function at the default point
             if self.useDefaultPoint:
@@ -1163,91 +1181,44 @@ echo "end mpirun"
         return True
 
 
-def optimize(learner, learnerName, trainDataFile, responseType, verbose = 0, queueType = "batch.q", runPath = None, nExtFolds = None, nFolds = 5, useGrid = False):
+def getOptParam(learner, trainDataFile, paramList = None, useGrid = False, verbose = 0, queueType = "NoSGE", runPath = None, nExtFolds = None, nFolds = 5):
     """
-    Optimize with default values for the learner (defined in AZLearnersParmsConfig)
+    Optimize the parameters in paramList. If no parametres defines, optimize defauld parameters (defined in AZLearnersParmsConfig). 
     Run optimization in parallel.
     Possible values:
-    responseType: Classification or other
-    learnerNames: RFLearner, CvSVMLearner, CvANNLearner, PLSLearner
-    queueType: 'batch.q' or 'quick.q' (jobs start immediatly but are terminated after 30 min) or 'NoSGE' (without access to the distributed environment)
+    Execute on the SGE or not: 
+                'NoSGE'   (without access to the distributed environment)
+                'batch.q'
+                'quick.q' (jobs start immediatly but are terminated after 30 min)
     runPath: If directory not provided, will run in NFS_SCRATCHDIR
     """
-
-    # Create an interface for setting optimizer parameters
-    pars = AZLearnersParamsConfig.API(learnerName)
-
-    # Create a directory for running the appspack (if not defined it will use the present working directory)
-    if not runPath:
-        runPath = miscUtilities.createScratchDir(desc ="optQsubTest", baseDir = AZOC.NFS_SCRATCHDIR)
-
-    # Response type
-    if responseType == "Classification":
-        evalM = "AZutilities.evalUtilities.CA"
-        fMin = False
+    # Find the name of the Learner
+    learnerName = str(learner.__class__)[:str(learner.__class__).rfind("'")].split(".")[-1]
+    # Set the response type
+    dataInfo = dataUtilities.getQuickDataSize(trainDataFile)
+    # returned["discreteClass"]    - Flag indicating the type of class: 1:discrete, 0:continuous, -1: unknown
+    if dataInfo["discreteClass"] == 1:
+        responseType = "Classification"
+    elif dataInfo["discreteClass"] == 0:
+        responseType = "Regression"
     else:
-        evalM = "AZutilities.evalUtilities.RMSE"
-        fMin = True
-
-    # Distributed computing available?
-    if queueType == "NoSGE":
-        np = None
-        machineFile = None
-    else:
-        np = 8
-        machineFile = "qsub" 
-
-
-    # Calculate the optimal parameters. This can take a long period of time!
-    optimizer = Appspack()
-    tunedPars = optimizer(learner=learner,\
-                    dataSet=trainDataFile,\
-                    evaluateMethod = evalM,\
-                    useParameters = pars.getParametersDict(),\
-                    findMin=fMin,\
-                    runPath = runPath,\
-                    verbose = verbose,\
-                    nExtFolds = nExtFolds, \
-                    nFolds = nFolds, \
-                    useGridSearchFirst = useGrid,\
-                    gridSearchInnerPoints = 3,\
-                    np = np,\
-                    machinefile = machineFile,\
-                    queueType = queueType)
-
-    #if verbose > 0:
-    print "====================== optimization Done ==========================="
-    print "Learner optimized flag = ", learner.optimized
-    print "Tuned parameters = ", tunedPars[1]
-    print "Best optimization result = ", tunedPars[0]
-    print "check the file optimizationLog.txt in "+runPath+" to see the intermediate results of optimizer!"
-
-    return learner, learner.optimized
-
-
-def optimizeSelectedParam(learner, learnerName ,trainDataFile, paramList, responseType, grid = False, useGrid = False, verbose = 0, queueType = "batch.q", runPath = None, nExtFolds = None, nFolds = 5):
-    """
-    Optimize the parameters in paramList. Run optimization in parallel.
-    Possible values:
-    grid: Execute on the SGE or not
-    responseType: Classification or other
-    learnerNames: RFLearner, CvSVMLearner, CvANNLearner, PLSLearner
-    queueType: batch.q or quick.q (jobs start immediatly but are terminated after 30 min)
-    runPath: If directory not provided, will run in NFS_SCRATCHDIR
-    """
+        print "WARNING!  Could not get the datase info. Data needed to be loaded in order to check the reponse type."
+        data = orange.ExampelTable(trainDataFile)
+        responseType = data.domain.classVar.varType == orange.VarTypes.Discrete and "Classification"  or "Regression"
 
     optimizer = Appspack()
 
     # Create an interface for setting optimizer parameters
     pars = AZLearnersParamsConfig.API(learnerName)
-
-    # Set all parameters to not be optimized
-    pars.setOptimizeAllParameters(False)
-
-    # Set the parameters in parameterList to be optimized
-    for parameter in paramList:
-        pars.setParameter(parameter,"optimize",True)
-
+    
+    # If no parameters passed, optimize default ones
+    if paramList:
+        # Set all parameters to not be optimized
+        pars.setOptimizeAllParameters(False)
+        # Set the parameters in parameterList to be optimized
+        for parameter in paramList:
+            pars.setParameter(parameter,"optimize",True)
+        
     # Create a directory for running appspack (if not defined it will use the present working directory)
     if not runPath:
         runPath = miscUtilities.createScratchDir(desc ="optQsubTest", baseDir = AZOC.NFS_SCRATCHDIR)
@@ -1259,12 +1230,12 @@ def optimizeSelectedParam(learner, learnerName ,trainDataFile, paramList, respon
         evalM = "AZutilities.evalUtilities.RMSE"
         fMin = True
 
-    if grid:
-        machinefile = "qsub"
-        np = 8
-    else:
+    if queueType == "NoSGE":
         machinefile = None
         np = None
+    else:
+        machinefile = "qsub"
+        np = 8
 
     # Calculate the optimal parameters. This can take a long period of time!
     tunedPars = optimizer(learner=learner,\
@@ -1279,7 +1250,7 @@ def optimizeSelectedParam(learner, learnerName ,trainDataFile, paramList, respon
                     nFolds = nFolds,\
                     np = np,\
                     machinefile = machinefile,\
-                    verbose = 0,\
+                    verbose = verbose,\
                     queueType = queueType)
 
     if verbose > 0:

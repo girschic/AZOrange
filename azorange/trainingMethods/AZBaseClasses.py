@@ -84,7 +84,12 @@ class AZLearner(orange.Learner):
 	self.name = name
         self.basicStat = None
         return self
-        
+      
+    def isCompatible(self, classVar):
+        """Checks if the learner is compatiblue with thw passed class variable"""
+        return True
+
+ 
     def __call__(self, trainingData = None, weight = None): 
         if not trainingData:
             print "AZBaseClasses ERROR: Missing training data!"
@@ -94,7 +99,7 @@ class AZLearner(orange.Learner):
             print "AZBaseClasses ERROR: Duplicated names found in the training data. Please use the method dataUtilities.DataTable() when loading a dataset in order to fix the duplicated names and avoid this error."
             self.basicStat = None
             return False
-        possibleMetas = dataUtilities.getPossibleMetas(trainingData)
+        possibleMetas = dataUtilities.getPossibleMetas(trainingData, checkIndividuality = True)
         if possibleMetas:
             msg="\nAZBaseClasses ERROR: Detected attributes that should be considered meta-attributes:"
             for attr in possibleMetas:

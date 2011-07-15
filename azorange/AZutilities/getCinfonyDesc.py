@@ -186,7 +186,7 @@ def getRdkDescResult(data,descList, radius = 1):
     if "FingerPrints" in myDescList:
         FingerPrints = True
         myDescList.remove("FingerPrints")
-         
+
     #Get fingerprints in advance
     fingerPrintsAttrs = []
     fingerPrintsRes = {}
@@ -207,9 +207,33 @@ def getRdkDescResult(data,descList, radius = 1):
                 name = rdkTag+"FP_"+str(ID)
                 if name not in [x.name for x in fingerPrintsAttrs]:
                     fingerPrintsAttrs.append(orange.FloatVariable(name))
-                fingerPrintsRes[mol][name]=int(count)
-    resData = orange.ExampleTable(orange.Domain([data.domain[smilesName]] + [orange.FloatVariable(rdkTag+name) for name in myDescList] + [name for name in fingerPrintsAttrs],0))
-     
+                fingerPrintsRes[mol][name] = float(count)
+    #Test attrTypes
+    for ex in data:
+        try:
+             attrObj = []
+             molStr = str(ex[smilesName].value)
+             chemMol = rdk.Chem.MolFromSmiles(molStr,True)
+             if not chemMol:
+                chemMol = rdk.Chem.MolFromSmiles(molStr,False)
+             mol = rdk.readstring("mol", rdk.Chem.MolToMolBlock(chemMol))
+             moldesc = mol.calcdesc(myDescList)
+             for desc in myDescList:
+		 if type(moldesc[desc]) == str:
+                     attrObj.append(orange.StringVariable(rdkTag + desc))
+                 else:
+                     attrObj.append(orange.FloatVariable(rdkTag + desc))
+
+             #Process fingerprints
+             if FingerPrints:
+                 for desc in fingerPrintsAttrs:
+                     attrObj.append(orange.FloatVariable(desc.name))
+             break
+        except:
+            continue    
+
+
+    resData = orange.ExampleTable(orange.Domain([data.domain[smilesName]] + attrObj,0))     
     badCompounds = 0
     for ex in data:
         newEx = orange.Example(resData.domain)
@@ -232,8 +256,7 @@ def getRdkDescResult(data,descList, radius = 1):
                      if desc.name in fingerPrintsRes[molStr]:
                          newEx[desc.name] = fingerPrintsRes[molStr][desc.name]
                      else:
-                         newEx[desc.name] = 0
-                         
+                         newEx[desc.name] = 0.0
              resData.append(newEx)
         except:
             #print "Unexpected error:", sys.exc_info()

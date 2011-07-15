@@ -62,7 +62,6 @@ class OWParamOpt(OWWidget):
 
         self.RMethods = [("RMSE", "AZutilities.evalUtilities.RMSE", True)]
         #                 ("R^2", "AZutilities.evalUtilities.Rsqrt", False)]
-
         self.SMethods = [("Leave-One-Out", 0),
                          ("Cross Validation", 1)]
 
