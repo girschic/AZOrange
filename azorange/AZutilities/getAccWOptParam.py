@@ -295,8 +295,6 @@ class AccWOptParamGetter():
         return statistics[statistics.keys()[0]]
 
 
-
-
     def getAcc_with_structDesc(self, algo, minsup, att_list):
         """ Same as getAcc but calculating structural Descriptors in each training fold 
             parameters:
@@ -310,90 +308,171 @@ class AccWOptParamGetter():
             For the EvalResults not supported for a specific learner/datase, the respective result will be None
             It some error occurred, the respective values in the Dict will be None
         """
+        self.__log("Starting Calculating MLStatistics")
+        statistics = {}
         if not self.__areInputsOK():
             return None
-        res = {"RMSE":None,"R2":None,"CA":None,"CM":None}
-        
-        print "Algo: ",
-        print algo
-        print "MinSup: ",
-        print minsup
+
+        self.__log("  "+str(algo))
+        self.__log("  "+str(minsup))
         
         # Set the response type
         responseType =  self.data.domain.classVar.varType == orange.VarTypes.Discrete and "Classification"  or "Regression"
-        
+        self.__log("  "+str(responseType))
 
         #Create the Train and test sets
         DataIdxs = dataUtilities.SeedDataSampler(self.data, self.nExtFolds) 
         
         #Var for saving each Fols result
-        results = []
-
-        for foldN in range(self.nExtFolds):
-            trainData = self.data.select(DataIdxs[foldN],negate=1)
-            # add structural descriptors to the training data (TG)
-            if (algo == "FTM"):
-                trainData_ftm = getStructuralDesc.getFTMDescResult(trainData, minsup)
-                trainData_ftm_scaled = dataUtilities.attributeDeselectionData(trainData_ftm, att_list)
-            
-            runPath = miscUtilities.createScratchDir(desc = "AccWOptParam")
-            trainData_ftm_scaled.save(os.path.join(runPath,"trainData_ftm.tab"))
-            
-            testData = self.data.select(DataIdxs[foldN])
-            # calculate the feature values for the test data (TG)
-            if (algo == "FTM"):
-                smarts = trainData_ftm.domain.attributes[len(trainData.domain.attributes):]
-                testData_ftm = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
-                testData_ftm_scaled = dataUtilities.attributeDeselectionData(testData_ftm, att_list)
-
-            paramOptUtilities.optimizeSelectedParam(
-                learner = self.learner, 
-                learnerName = self.learnerName,
-                trainDataFile = os.path.join(runPath,"trainData_ftm.tab"), 
-                paramList = self.paramList, 
-                responseType = responseType, 
-                grid = False, 
-                useGrid = False, 
-                verbose = 0, 
-                queueType = "batch.q", 
-                runPath = runPath, 
-                nExtFolds = None, 
-                nFolds = self.nInnerFolds)
-            if not self.learner.optimized:
-                print "The learner was not optimized."
-                return None
-            miscUtilities.removeDir(runPath) 
-            #Train the model
-            model = self.learner(trainData_ftm_scaled)
-            #Test teh model
-            if responseType == "Classification":
-                results.append((evalUtilities.getClassificationAccuracy(testData_ftm_scaled, model), evalUtilities.getConfMat(testData_ftm_scaled, model) ) )
-            else:
-                results.append((evalUtilities.getRMSE(testData_ftm_scaled, model), evalUtilities.getRsqrt(testData_ftm_scaled, model) ) )
-
-        #Calculate the average of results
-        #Compute the first result (CA or RMSE)
-        if responseType == "Classification":
-            resName = "CA"
+        results = {}
+        exp_pred = {}
+        
+        #Set a dict of learners
+        MLmethods = {}
+        if type(self.learner) == dict:
+            for ml in self.learner:
+                MLmethods[ml] = self.learner[ml]
         else:
-            resName = "RMSE"
-        res[resName] = 0.0
-        for r in results:
-            res[resName] += r[0]
-        res[resName] = res[resName] / self.nExtFolds
-        #Compute the second result (ConfMat or R2)
-        if responseType == "Classification":
-            res["CM"] = results[0][1]                      # Get the first ConfMat
-            for r in results[1:]:
-                for Lidx,line in enumerate(r[1]):
-                    for idx,val in enumerate(line):
-                        res["CM"][Lidx][idx] = res["CM"][Lidx][idx] + val   #Add each same ConfMat position
-        else:
-            res["R2"] = 0.0
-            for r in results:
-                res["R2"] += r[1]
-            res["R2"] = res["R2"] / self.nExtFolds
+            MLmethods[self.learner.name] = self.learner
 
-        if self.verbose > 0: print "AccWOptParamGetter!Results: ",results, "\n res = ",res
-        return res
+        models={}
+        self.__log("Calculating Statistics for MLmethods:")
+        self.__log("  "+str([x for x in MLmethods]))
+        for ml in MLmethods:
+          self.__log("    > "+str(ml)+"...")
+          try:
+            #Var for saving each Fols result
+            results[ml] = []
+            exp_pred[ml] = []
+            models[ml] = []
+            for foldN in range(self.nExtFolds):
+                if type(self.learner) == dict:
+                    self.paramList = None
+
+                trainData = self.data.select(DataIdxs[foldN],negate=1)
+                # add structural descriptors to the training data (TG)
+                trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algo, minsup)
+ #               self.__log("    TG "+str(len(trainData_structDesc.domain.attributes))+"...")
+                trainData_structDesc_clean = dataUtilities.attributeDeselectionData(trainData_structDesc, att_list)
+
+                runPath = miscUtilities.createScratchDir(baseDir = AZOC.NFS_SCRATCHDIR, desc = "AccWOptParam")
+#                self.__log("    TG "+str(runPath)+"...")
+                trainData_structDesc_clean.save(os.path.join(runPath,"trainData_structDesc.tab"))
+                testData = self.data.select(DataIdxs[foldN])
+#		self.__log("   TG test "+str(len(testData.domain.attributes)))
+                # calculate the feature values for the test data (TG)
+                smarts = trainData_structDesc.domain.attributes[len(trainData.domain.attributes):]
+		self.__log("   TG smarts "+str(len(smarts)))
+                testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
+#		self.__log("   TG test2"+str(len(testData_structDesc.domain.attributes)))
+                testData_structDesc_clean = dataUtilities.attributeDeselectionData(testData_structDesc, att_list)
+#		self.__log("    TG "+str(len(testData_structDesc_clean.domain.attributes))+"...")
+                paramOptUtilities.getOptParam(
+                    learner = MLmethods[ml], 
+                    trainDataFile = os.path.join(runPath,"trainData_structDesc.tab"), 
+                    paramList = self.paramList, 
+                    useGrid = False, 
+                    verbose = self.verbose, 
+                    queueType = self.queueType, 
+                    runPath = runPath, 
+                    nExtFolds = None, 
+                    nFolds = self.nInnerFolds)
+                if not MLmethods[ml].optimized:
+                    self.__log("       The learner "+str(ml)+" was not optimized.")
+                    raise Exception("The learner "+str(ml)+" was not optimized.")
+                miscUtilities.removeDir(runPath) 
+
+                #Train the model
+                model = MLmethods[ml](trainData_structDesc_clean)
+                models[ml].append(model)
+                #Test the model
+                if responseType == "Classification":
+                    results[ml].append((evalUtilities.getClassificationAccuracy(testData_structDesc_clean, model), evalUtilities.getConfMat(testData_structDesc_clean, model) ) )
+                else:
+                    local_exp_pred = []
+                    for ex in testData_structDesc_clean:
+                        local_exp_pred.append((ex.getclass(), model(ex)))
+                    results[ml].append((evalUtilities.calcRMSE(local_exp_pred), evalUtilities.calcRsqrt(local_exp_pred) ) )
+                    #Save the experimental value and correspondent predicted value
+                    exp_pred[ml] += local_exp_pred
+   
+            res = self.createStatObj(results[ml], exp_pred[ml], responseType, self.nExtFolds)
+            if self.verbose > 0: 
+                print "AccWOptParamGetter!Results  "+ml+":\n"
+                pprint(res)
+            if not res:
+                raise Exception("No results available!")
+            statistics[ml] = res.copy()
+            self.__writeResults(res)
+            self.__log("       OK")
+          except:
+            self.__log("       Learner "+str(ml)+" failed to optimize!")
+            res = self.createStatObj()
+            statistics[ml] = res.copy()
+
+        if not statistics or len(statistics) < 1:
+            self.__log("ERROR: No statistics to return!")
+            return None
+        elif len(statistics) > 1:
+            #We still need to build a consensus model out of the stable models 
+            #   ONLY if there are more that one model stable!
+            stableML={}
+            for modelName in statistics:
+                if statistics[modelName]["StabilityValue"] < AZOC.QSARSTABILITYTHRESHOLD:   # Select only stable models
+                    stableML[modelName] = statistics[modelName].copy()
+            if len(stableML) >= 2:
+                self.__log("Found "+str(len(stableML))+" stable MLmethods out of "+str(len(statistics))+" MLmethods.")
+                if responseType == "Classification":
+                    CLASS0 = str(self.data.domain.classVar.values[0])
+                    CLASS1 = str(self.data.domain.classVar.values[1])
+                    exprTest0 = "(0"
+                    for ml in stableML:
+                        exprTest0 += "+( "+ml+" == "+CLASS0+" )*"+str(stableML[ml]["CA"])+" "
+                    exprTest0 += ")/IF0(sum([False"
+                    for ml in stableML:
+                        exprTest0 += ", "+ml+" == "+CLASS0+" "
+                    exprTest0 += "]),1)"
+                    exprTest1 = exprTest0.replace(CLASS0,CLASS1)
+                    expression = [exprTest0+" >= "+exprTest1+" -> "+CLASS0," -> "+CLASS1]
+                else:
+                    R2sum = sum([stableML[ml]["R2"] for ml in stableML])
+                    expression = "(1 / "+str(R2sum)+") * (0"
+                    for ml in stableML:
+                        expression += " + "+str(stableML[ml]["R2"])+" * "+ml+" "
+                    expression += ")"
+
+                #Var for saving each Fols result
+                Cresults = []
+                Cexp_pred = []
+                self.__log("Calculating the statistics for a Consensus model")
+                for foldN in range(self.nExtFolds):
+                    testData_structDesc_clean = self.data.select(DataIdxs[foldN])
+                    consensusClassifiers = {}
+                    for learnerName in stableML:
+                        consensusClassifiers[learnerName] = models[learnerName][foldN]
+
+                    model = AZorngConsensus.ConsensusClassifier(classifiers = consensusClassifiers, expression = expression)     
+                    #Test the model
+                    if responseType == "Classification":
+                        Cresults.append((evalUtilities.getClassificationAccuracy(testData_structDesc_clean, model), evalUtilities.getConfMat(testData_structDesc_clean, model) ) )
+                    else:
+                        local_exp_pred = []
+                        for ex in testData_structDesc_clean:
+                            local_exp_pred.append((ex.getclass(), model(ex)))
+                        Cresults.append((evalUtilities.calcRMSE(local_exp_pred), evalUtilities.calcRsqrt(local_exp_pred) ) )
+                        #Save the experimental value and correspondent predicted value
+                        Cexp_pred += local_exp_pred
+
+                res = self.createStatObj(Cresults, Cexp_pred, responseType, self.nExtFolds)
+                statistics["Consensus"] = res.copy()
+                statistics["Consensus"]["IndividualStatistics"] = stableML.copy()
+                self.__writeResults(statistics)
+            self.__log("Returned multiple ML methods statistics.")
+            return statistics
+                 
+        #By default return the only existing statistics!
+        self.__writeResults(statistics)
+        self.__log("Returned only one ML method statistics.")
+        return statistics[statistics.keys()[0]]
+
 

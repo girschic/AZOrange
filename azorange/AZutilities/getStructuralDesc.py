@@ -11,7 +11,7 @@ import time
 import random
 import string
 
-#import subprocess
+import subprocess
 from subprocess import Popen, PIPE
 import tempfile
 import orange
@@ -24,12 +24,104 @@ from AZutilities import dataUtilities
 #FTM = os.path.join("/home/kgvf414/projects/SimBoostedQSAR/FTM", "ftm")
 FTM = os.path.join("", "ftm")
 
+
+def getStructuralDescResult(data,algo,minsup):
+    """ delegate to different algorithm methods 
+    """
+    if (algo == "FTM"):
+        return getFTMDescResult(data,minsup)
+    elif (algo == "BBRC"):
+        return getBBRCDescResult(data,minsup)
+
+
+
+def getBBRCDescResult(data,minSup):
+	""" Calculates the structural BBRC descriptors for the data using Fminer with the BBRC plugin (python bindings)
+		It expects a relative minimum frequency parameter, an optional chi-squared significance parameter
+		and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
+		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
+	"""
+	smarts = getBBRCsmartsList(data,minSup)
+
+	newdomain = orange.Domain(data.domain.attributes + smarts, data.domain.classVar)
+        newdata = orange.ExampleTable(newdomain, data)
+
+	smilesName = getSMILESAttr(data)
+        if not smilesName: return None
+			
+   	count = 0
+	for a in newdata:
+        	smile = str(a[smilesName].value)
+		m = rdk.Chem.MolFromSmiles(smile)
+	        if m is None:
+        		count += 1
+		        continue
+
+	        for b in range(len(smarts)):
+        		patt = rdk.Chem.MolFromSmarts(smarts[b].name)
+		        if m.HasSubstructMatch(patt):
+                		tmp = orange.Value(smarts[b],1.0)
+		        else:
+                		tmp = orange.Value(smarts[b],0.0)
+		        a[smarts[b]] = tmp
+
+	return newdata 
+
+
+def getBBRCsmartsList(data,minSup):
+	""" Calculates the BBRC class-correlated structural features using Fminer with libbbrc python bindings
+	    returned is a list of SMARTS string that describe the features
+	    Helper function for getBBRCDescResult()
+	"""
+	import bbrc
+
+        smilesName = getSMILESAttr(data)
+        if not smilesName: return None
+
+        # Constructor for standard settings: 95% significance Bbrclevel, minimum frequency 2, type trees, dynamic upper bound, BBRC.
+        Fminer = bbrc.Bbrc()
+        #if (chisqSig):
+         #   Fminer.SetChisqSig(chisqSig)
+
+        # Pass 'true' here to disable usage of result vector and directly print each fragment to the console (saves memory).     
+        Fminer.SetConsoleOut(0)
+        # Pass 'true' here to enable aromatic rings and use Kekule notation. IMPORTANT! SET THIS BEFORE CALLING AddCompound()! Same as '-a'. 
+        Fminer.SetAromatic(1)
+        Fminer.SetMinfreq(minSup)
+
+        # add compounds     IMPORTANT! Do not change settings after adding compounds!
+        count = 1
+        for a in data:
+                smile = str(a[smilesName].value)
+                activity = float(a.getclass())
+                Fminer.AddCompound(smile, count)
+		Fminer.AddActivity(activity, count)
+                count += 1
+
+        features = []
+        # gather results for every root node in vector instead of immediate output
+        for j in range(0, Fminer.GetNoRootNodes()-1):
+                result = Fminer.MineRoot(j);
+                for i in range(0, result.size()-1):
+                        #print result[i]
+                        # YAML
+                        # - [ smarts,    p_chisq,    occ_list_class1,    occ_list_class2,    ... ]                       
+                        start_idx = result[i].find('"') + 1
+                        smarts = result[i][start_idx:result[i].rfind('"')]
+                        # add new attributes to list
+                        features.append(orange.FloatVariable(smarts, numberOfDecimals=1))
+                        #m = rdk.Chem.MolFromSmarts(smarts)
+	
+	return features
+
+
+
 def getFTMDescResult(data,minSup):
 	""" Calculates the structural FTM descriptors for the data using FTM
 		It expects a relative minimum frequency parameter and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
 		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
 	"""
-	sdf_mols, temp_occ = makeTempFiles(data)
+	sdf_mols, temp_occ = makeTempFilesFTM(data)
 		
 	# start FTM subprocess
 	ftm(temp_occ.name, minSup, sdf_mols.name)
@@ -79,9 +171,9 @@ def getFTMDescResult(data,minSup):
 	temp_occ.close()
 	sdf_mols.close()
 	return newdata
-	
 
-def makeTempFiles(data):
+
+def makeTempFilesFTM(data):
 	"""	create temporary files for FTM I/O
 		returns to file objects that still have to be closed!
 		temp_occ contains the occurrence list of substructures (result)
