@@ -364,7 +364,7 @@ class AccWOptParamGetter():
                 smarts = trainData_structDesc.domain.attributes[len(trainData.domain.attributes):]
 		self.__log("   TG smarts "+str(len(smarts)))
                 testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
-#		self.__log("   TG test2"+str(len(testData_structDesc.domain.attributes)))
+#		self.__log("   TG test2 "+str(len(testData_structDesc.domain.attributes)))
                 testData_structDesc_clean = dataUtilities.attributeDeselectionData(testData_structDesc, att_list)
 #		self.__log("    TG "+str(len(testData_structDesc_clean.domain.attributes))+"...")
                 paramOptUtilities.getOptParam(
