@@ -31,17 +31,22 @@ def getStructuralDescResult(data,algo,minsup):
     if (algo == "FTM"):
         return getFTMDescResult(data,minsup)
     elif (algo == "BBRC"):
-        return getBBRCDescResult(data,minsup)
+        return getFMinerDescResult(data,minsup,algo)
+    elif (algo == "LAST-PM"):
+        return getFMinerDescResult(data,minsup,algo)
 
 
-
-def getBBRCDescResult(data,minSup):
-	""" Calculates the structural BBRC descriptors for the data using Fminer with the BBRC plugin (python bindings)
-		It expects a relative minimum frequency parameter, an optional chi-squared significance parameter
+def getFMinerDescResult(data,minSup,algo):
+	""" Calculates the structural Fminer descriptors for the data using Fminer with the BBRC or LAST-PM plugin (python bindings)
+		It expects an absolute minimum frequency parameter
 		and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
 		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
 	"""
-	smarts = getBBRCsmartsList(data,minSup)
+	smarts = None
+	if (algo == "BBRC"):
+		smarts = getBBRCsmartsList(data,minSup)
+	elif (algo == "LAST-PM"):
+        	smarts = getLASTPMsmartsList(data,minSup)
 
 	newdomain = orange.Domain(data.domain.attributes + smarts, data.domain.classVar)
         newdata = orange.ExampleTable(newdomain, data)
@@ -68,10 +73,55 @@ def getBBRCDescResult(data,minSup):
 	return newdata 
 
 
+
+
+
+def getLASTPMsmartsList(data,minSup):
+	""" Calculates the LAST-PM class-correlated structural features using Fminer with libbbrc python bindings
+	    returned is a list of SMARTS string that describe the features
+	    Helper function for getFMinerDescResult()
+	"""
+	import liblast
+
+	smilesName = getSMILESAttr(data)
+        if not smilesName: return None
+
+	Fminer = liblast.Last()
+	Fminer.SetConsoleOut(0)
+	Fminer.SetAromatic(1)
+	Fminer.SetMinfreq(minSup)
+
+	# add compounds     IMPORTANT! Do not change settings after adding compounds!
+        count = 1
+        for a in data:
+                smile = str(a[smilesName].value)
+                activity = float(a.getclass())
+                Fminer.AddCompound(smile, count)
+		Fminer.AddActivity(activity, count)
+                count += 1
+
+        features = []
+        # gather results for every root node in vector instead of immediate output
+        for j in range(0, Fminer.GetNoRootNodes()-1):
+                result = Fminer.MineRoot(j);
+                for i in range(0, result.size()-1):
+                        #print result[i]
+                        # YAML
+                        # - [ smarts,    p_chisq,    occ_list_class1,    occ_list_class2,    ... ]                       
+                        start_idx = result[i].find('"') + 1
+                        smarts = result[i][start_idx:result[i].rfind('"')]
+                        # add new attributes to list
+                        features.append(orange.FloatVariable(smarts, numberOfDecimals=1))
+                        #m = rdk.Chem.MolFromSmarts(smarts)
+	
+	return features
+    
+
+
 def getBBRCsmartsList(data,minSup):
 	""" Calculates the BBRC class-correlated structural features using Fminer with libbbrc python bindings
 	    returned is a list of SMARTS string that describe the features
-	    Helper function for getBBRCDescResult()
+	    Helper function for getFMinerDescResult()
 	"""
 	import bbrc
 
