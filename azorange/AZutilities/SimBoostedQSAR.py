@@ -96,10 +96,15 @@ def orng_sim_rdk_topo_fps(smile_active, train_instance):
 	if not smilesName: return None
 	smile_train = str(train_instance[smilesName].value)
 	
-	fp_A = FingerprintMols.FingerprintMol(rdk.Chem.MolFromSmiles(smile_active))
-	fp_T = FingerprintMols.FingerprintMol(rdk.Chem.MolFromSmiles(smile_train))
+	molAct = rdk.Chem.MolFromSmiles(smile_active)
+	molTrain = rdk.Chem.MolFromSmiles(smile_train)
 	
-	sim = DataStructs.FingerprintSimilarity(fp_A,fp_T)
+	if not molAct: return None
+	if not molTrain: return None
+	
+	fp_A = FingerprintMols.FingerprintMol(molAct)
+    	fp_T = FingerprintMols.FingerprintMol(molTrain)
+    	sim = DataStructs.FingerprintSimilarity(fp_A,fp_T)
 
 	return sim
 	
@@ -114,8 +119,14 @@ def orng_sim_rdk_MACCS_keys(smile_active, train_instance):
 	if not smilesName: return None
 	smile_train = str(train_instance[smilesName].value)
 	
-	fp_A = rdk.Chem.MACCSkeys.GenMACCSKeys(rdk.Chem.MolFromSmiles(smile_active))
-	fp_T = rdk.Chem.MACCSkeys.GenMACCSKeys(rdk.Chem.MolFromSmiles(smile_train))
+	molAct = rdk.Chem.MolFromSmiles(smile_active)
+	molTrain = rdk.Chem.MolFromSmiles(smile_train)
+    
+	if not molAct: return None
+	if not molTrain: return None
+    
+	fp_A = rdk.Chem.MACCSkeys.GenMACCSKeys(molAct)
+	fp_T = rdk.Chem.MACCSkeys.GenMACCSKeys(molTrain)
 	sim = DataStructs.FingerprintSimilarity(fp_A,fp_T)
 	
 	return sim
@@ -130,8 +141,14 @@ def orng_sim_rdk_morgan_fps(smile_active, train_instance):
 	if not smilesName: return None
 	smile_train = str(train_instance[smilesName].value)
 	
-	fp_A = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_active),2)
-	fp_T = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_train),2)
+	molAct = rdk.Chem.MolFromSmiles(smile_active)
+	molTrain = rdk.Chem.MolFromSmiles(smile_train)
+    
+	if not molAct: return None
+	if not molTrain: return None
+	
+	fp_A = rdk.AllChem.GetMorganFingerprint(molAct,2)
+	fp_T = rdk.AllChem.GetMorganFingerprint(molTrain,2)
 	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
 	
 	return sim
@@ -146,8 +163,14 @@ def orng_sim_rdk_morgan_features_fps(smile_active, train_instance):
 	if not smilesName: return None
 	smile_train = str(train_instance[smilesName].value)
 	
-	fp_A = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_active),2,useFeatures=True)
-	fp_T = rdk.AllChem.GetMorganFingerprint(rdk.Chem.MolFromSmiles(smile_train),2,useFeatures=True)
+	molAct = rdk.Chem.MolFromSmiles(smile_active)
+	molTrain = rdk.Chem.MolFromSmiles(smile_train)
+    
+	if not molAct: return None
+	if not molTrain: return None
+    
+	fp_A = rdk.AllChem.GetMorganFingerprint(molAct,2,useFeatures=True)
+	fp_T = rdk.AllChem.GetMorganFingerprint(molTrain,2,useFeatures=True)
 	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
 	
 	return sim
@@ -162,8 +185,14 @@ def orng_sim_rdk_atompair_fps(smile_active, train_instance):
 	if not smilesName: return None
 	smile_train = str(train_instance[smilesName].value)
 	
-	fp_A = Pairs.GetAtomPairFingerprint(rdk.Chem.MolFromSmiles(smile_active))
-	fp_T = Pairs.GetAtomPairFingerprint(rdk.Chem.MolFromSmiles(smile_train))
+	molAct = rdk.Chem.MolFromSmiles(smile_active)
+	molTrain = rdk.Chem.MolFromSmiles(smile_train)
+    
+	if not molAct: return None
+	if not molTrain: return None
+    
+	fp_A = Pairs.GetAtomPairFingerprint(molAct)
+	fp_T = Pairs.GetAtomPairFingerprint(molTrain)
 	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
 	
 	return sim

@@ -220,6 +220,7 @@ def getFTMDescResult(data,minSup):
 		
 	temp_occ.close()
 	sdf_mols.close()
+	#print "Number of atts: " + str(len(newdata.domain.attributes))
 	return newdata
 
 
