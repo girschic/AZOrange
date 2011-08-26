@@ -25,6 +25,11 @@ class UnbiasedAccuracyGetter():
         self.paramList = None
         self.queueType = "NoSGE"
         self.responseType = None
+        
+        self.algorithm = None
+        self.minsup = None
+        self.atts = None
+        
         self.sampler = dataUtilities.SeedDataSampler
         # Append arguments to the __dict__ member variable 
         self.__dict__.update(kwds)
@@ -214,10 +219,10 @@ class UnbiasedAccuracyGetter():
         if not self.__areInputsOK():
             return None
         
-        if (self.algorithm):
+        if (algorithm):
             self.__log(" Additional structural features to be calculated inside of cross-validation")
-            self.__log(" Algorithm for structural features: "+str(self.algorithm))
-            self.__log(" Minimum support parameter: "+str(self.minsup))
+            self.__log(" Algorithm for structural features: "+str(algorithm))
+            self.__log(" Minimum support parameter: "+str(minsup))
             
         # Set the response type
         self.responseType =  self.data.domain.classVar.varType == orange.VarTypes.Discrete and "Classification"  or "Regression"
@@ -275,19 +280,19 @@ class UnbiasedAccuracyGetter():
                 trainData = self.data.select(DataIdxs[foldN],negate=1)
                 orig_len = len(trainData.domain.attributes)
                 # add structural descriptors to the training data (TG)
-                if (self.algorithm):
-	               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, self.algorithm, self.minsup)
-        	        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, self.atts)
+                if (algorithm):
+	               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm, minsup)
+        	        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
 
                 
                 testData = self.data.select(DataIdxs[foldN])
                 # calculate the feature values for the test data (TG)
-                if (self.algorithm):
-		        cut_off = orig_len - len(self.atts)
+                if (algorithm):
+		        cut_off = orig_len - len(atts)
                 	smarts = trainData.domain.attributes[cut_off:]
                 	self.__log("  Number of structural features added: "+str(len(smarts)))
 	                testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
-	                testData = dataUtilities.attributeDeselectionData(testData_structDesc, self.atts)
+	                testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
                 
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
