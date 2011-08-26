@@ -10,7 +10,7 @@ import orngTest, orngStat
 import os,random
 from pprint import pprint
 import statc
-
+from AZutilities import getStructuralDesc
 
 
 class UnbiasedAccuracyGetter():
@@ -193,7 +193,7 @@ class UnbiasedAccuracyGetter():
 
         return res
         
-    def getAcc(self):
+    def getAcc(self, algorithm = None, minsup = None, atts = None):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"Q2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -203,11 +203,22 @@ class UnbiasedAccuracyGetter():
                 made out of those that were stable
 
             It some error occurred, the respective values in the Dict will be None
+                
+			parameters:
+                algo - key for the structural feature generation algorithm (set dependent structural features that have to be calculated inside the crossvalidation)
+                minsup - minimum support for the algorithm
+                atts - attributes to be removed before learning (e.g. meta etc...)
         """
         self.__log("Starting Calculating MLStatistics")
         statistics = {}
         if not self.__areInputsOK():
             return None
+        
+        if (self.algorithm):
+            self.__log(" Additional structural features to be calculated inside of cross-validation")
+            self.__log(" Algorithm for structural features: "+str(self.algorithm))
+            self.__log(" Minimum support parameter: "+str(self.minsup))
+            
         # Set the response type
         self.responseType =  self.data.domain.classVar.varType == orange.VarTypes.Discrete and "Classification"  or "Regression"
         self.__log("  "+str(self.responseType))
@@ -262,7 +273,22 @@ class UnbiasedAccuracyGetter():
                     self.paramList = None
 
                 trainData = self.data.select(DataIdxs[foldN],negate=1)
+                orig_len = len(trainData.domain.attributes)
+                # add structural descriptors to the training data (TG)
+                if (self.algorithm):
+	               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, self.algorithm, self.minsup)
+        	        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, self.atts)
+
+                
                 testData = self.data.select(DataIdxs[foldN])
+                # calculate the feature values for the test data (TG)
+                if (self.algorithm):
+		        cut_off = orig_len - len(self.atts)
+                	smarts = trainData.domain.attributes[cut_off:]
+                	self.__log("  Number of structural features added: "+str(len(smarts)))
+	                testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
+	                testData = dataUtilities.attributeDeselectionData(testData_structDesc, self.atts)
+                
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
                 #Test if trainsets inside optimizer will respect dataSize criterias.

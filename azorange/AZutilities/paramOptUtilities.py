@@ -1204,7 +1204,7 @@ echo "end mpirun"
         return True
 
 
-def getOptParam(learner, trainDataFile, paramList = None, useGrid = False, verbose = 0, queueType = "NoSGE", runPath = None, nExtFolds = None, nFolds = 5, logFile = "", getTunedPars = False, algorithm = None, minsup = None, atts = None):
+def getOptParam(learner, trainDataFile, paramList = None, useGrid = False, verbose = 0, queueType = "NoSGE", runPath = None, nExtFolds = None, nFolds = 5, logFile = "", getTunedPars = False):
     """
     Optimize the parameters in paramList. If no parametres defines, optimize defauld parameters (defined in AZLearnersParmsConfig). 
     Run optimization in parallel.
@@ -1214,11 +1214,6 @@ def getOptParam(learner, trainDataFile, paramList = None, useGrid = False, verbo
                 'batch.q'
                 'quick.q' (jobs start immediatly but are terminated after 30 min)
     runPath: If directory not provided, will run in NFS_SCRATCHDIR
-    
-			parameters:
-                algo - key for the structural feature generation algorithm
-                minsup - minimum support for the algorithm
-                atts - attributes to be removed before learning (e.g. meta etc...)
     """
     # Find the name of the Learner
     learnerName = str(learner.__class__)[:str(learner.__class__).rfind("'")].split(".")[-1]

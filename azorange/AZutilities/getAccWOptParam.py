@@ -140,7 +140,7 @@ class AccWOptParamGetter():
             res["StabilityValue"] = evalUtilities.stability(res["foldStat"]["R2"])
         return res
         
-    def getAcc(self):
+    def getAcc(self, algorithm = None, minsup = None, atts = None):
         """ For regression problems, it returns the RMSE and the R2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"R2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -224,10 +224,8 @@ class AccWOptParamGetter():
                     queueType = self.queueType, 
                     runPath = runPath, 
                     nExtFolds = None, 
-                    nFolds = self.nInnerFolds,
-                    algorithm = self.algorithm,
-                    minsup = self.minsup,
-                    atts = self.atts)
+                    nFolds = self.nInnerFolds
+                    )
                 if not MLmethods[ml].optimized:
                     self.__log("       The learner "+str(ml)+" was not optimized.")
                     raise Exception("The learner "+str(ml)+" was not optimized.")
