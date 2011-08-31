@@ -10,7 +10,7 @@ from rdkit.Chem.Fingerprints import FingerprintMols
 from rdkit.Chem.AtomPairs import Pairs
 import AZOrangeConfig as AZOC
 
-def getSimDescriptors(actives, data, methods):
+def getSimDescriptors(actives, data, methods, active_ids = None, pharmacophore_file = None):
 	""" calculates similarity descriptors for a training set (orange object) using the 
 		given similarity methods against the given actives
 		Possible method strings in methods are the names of the sim_* methods below,
@@ -80,17 +80,98 @@ def getSimDescriptors(actives, data, methods):
 					tmp = orange.Value(atts[att_idx], orng_sim_rdk_atompair_fps(a, instance))
 					instance[atts[att_idx]] = tmp		
 				att_idx += 1	
-							
+        
+	        elif m == 'azo_pharmacophore_fps':
+        		count = 1
+		        for a in active_ids:
+        	        	attname = m + '(active_'+ str(count)+ ')'
+	                	for j in range(len(newdata)):
+		                    	instance = newdata[j]
+			            	tmp = orange.Value(atts[att_idx], azo_pharmacophore_az_inhouse(a, instance, pharmacophore_file))
+                	    		instance[atts[att_idx]] = tmp
+        	        	att_idx += 1
+								
 	return newdata
 	
+
+def azo_pharmacophore_az_inhouse(active_id, train_instance, pharmacophore_file):
+    	""" calculate the pharmacophore fingerprint similarity using the AZ inhouse calculated pharmacophore fp
+            (the fps are read from a text file for first implementation convenience)
+	    input are the smiles string and a orange data instance
+            returned is a similarty value
+    	"""
+	cidName = getCIDAttr(train_instance)
+	if not cidName: return None
+	train_id = str(int(train_instance[cidName].value))
 	
+	#print "act"
+	fp_A = getPharmacophoreFP(active_id, pharmacophore_file)
+	#print "train " + str(train_id)
+	fp_T = getPharmacophoreFP(train_id, pharmacophore_file)
+	if (fp_A == None or fp_T == None):
+		print "Couldn't calc both FPs"
+	else:
+		sim = getContinuousTanimoto(fp_A,fp_T)
+
+	return sim
+
+
+
+def getPharmacophoreFP(mol_id, pharmacophore_file):
+	""" extracts the pharmacophore fingerprint in orange fingerprint format from 
+            the AZ in-house pharmacophore text file via a mol id match
+	"""
+	pf = open(pharmacophore_file, 'r')
+	fp_vals = {}
+	for line in pf:
+		splitlist = str(line.strip()).split(" ")
+		# remove CID, smiles string and bit count
+		cid = splitlist.pop(0)
+		splitlist.pop(0)
+		if (cid.strip() == mol_id.strip()):
+		        #print "mol found"
+			splitlist.pop(0)
+			for bit in range(len(splitlist)):
+				if bit % 2 == 0.0:
+					fp_vals[splitlist[bit]] = splitlist[bit+1]
+			break
+        #print fp_vals			
+    	
+	pf.close()    
+	return fp_vals 
+
+
+
+def getContinuousTanimoto(fp_A, fp_B):
+	""" calculate the Tanimoto coefficient for countinuous valued fingerprints
+	    according to:
+	    sim(a,b) = sum_i^N x_a*x_b   /  sum x_a^2 + sum x_b^2 - sum x_a*x_b
+	    fp_A and fp_B are dictionaries with key = bit number and value = bit value
+	    if the bit is set to 0 no key value pair is assumed to be set	
+	"""
+	sum_b = 0.0
+	sum_a = 0.0
+	sum_c = 0.0
+
+	for bit,value in fp_A.iteritems():
+		sum_a = sum_a + int(value)**2
 	
+	for bit_b,value_b in fp_B.iteritems():
+		sum_b = sum_b + int(value_b)**2
+		if (bit_b in fp_A):
+			sum_c = sum_c + (int(value_b) * int(fp_A[bit_b]))
+
+ 	sim = sum_c / (sum_a + sum_b - sum_c)
+	#print "A: " + str(sum_a) + " B: " + str(sum_b) + " C: " + str(sum_c) + " SIM: " + str(sim)
+
+	return sim
+
 
 def orng_sim_rdk_topo_fps(smile_active, train_instance):
 	""" calculate the fingerprint similarity using the RDK topological fingerprints
 		(The fingerprinting algorithm used is similar to that used in the Daylight fingerprinter)
 		input are a smiles string and a orange data instance
-		returned is a similaritie value
+		returned is a similarity value
 	"""
 	smilesName = getSMILESAttr(train_instance)
 	if not smilesName: return None
@@ -287,6 +368,21 @@ def sim_rdk_morgan_fps(smiA, smisT):
 	return sim_vector
 
 
+def getCIDAttr(data):
+        cidName = None
+        # "PUBCHEM_CID"
+        for attr in [a.name for a in data.domain] + [a.name for a in data.domain.getmetas().values()]:
+                if attr in ['"PUBCHEM_CID"',"PUBCHEM_CID", "CID", '"CID"']:
+                        cidName = attr
+        if not cidName:
+                print "Warning: The data set does not contain any known compound identifier"
+                print "No pharmacophoric descriptors added!"
+                return None
+                
+        else:
+                return cidName
+                
+                               
 def getSMILESAttr(data):
     # Check that the data contains a SMILES attribute
     smilesName = None
@@ -295,7 +391,7 @@ def getSMILESAttr(data):
             smilesName = attr
     if not smilesName:
         print "Warning: The data set does not contain any known smiles attribute!"
-        print "No Cinfony descriptors added!"
+        print "No similarity descriptors added!"
         return None
     else:       
         return smilesName
