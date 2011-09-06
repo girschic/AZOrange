@@ -10,11 +10,14 @@ from rdkit.Chem.Fingerprints import FingerprintMols
 from rdkit.Chem.AtomPairs import Pairs
 import AZOrangeConfig as AZOC
 
-def getSimDescriptors(actives, data, methods, active_ids = None, pharmacophore_file = None):
+def getSimDescriptors(actives, data, methods, active_ids = None, pharmacophore_file = None, r = 2):
 	""" calculates similarity descriptors for a training set (orange object) using the 
 		given similarity methods against the given actives
 		Possible method strings in methods are the names of the sim_* methods below,
 		e.g. rdk_topo_fps for sim_rdk_topo_fps
+
+		parameters:
+			r - radius parameter for the RDK morgan fingerprint methods, default = 2
 	"""
 	# adjust the header
 	atts = []
@@ -57,7 +60,7 @@ def getSimDescriptors(actives, data, methods, active_ids = None, pharmacophore_f
 				attname = m + '(active_'+ str(count)+ ')'
 				for j in range(len(newdata)):
 					instance = newdata[j]
-					tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_fps(a, instance))
+					tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_fps(a, instance, radius = r))
 					instance[atts[att_idx]] = tmp		
 				att_idx += 1	
 				
@@ -67,7 +70,7 @@ def getSimDescriptors(actives, data, methods, active_ids = None, pharmacophore_f
 				attname = m + '(active_'+ str(count)+ ')'
 				for j in range(len(newdata)):
 					instance = newdata[j]
-					tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_features_fps(a, instance))
+					tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_features_fps(a, instance, radius = r))
 					instance[atts[att_idx]] = tmp		
 				att_idx += 1	
 					
