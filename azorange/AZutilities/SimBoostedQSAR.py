@@ -212,7 +212,7 @@ def orng_sim_rdk_MACCS_keys(smile_active, train_instance):
 	
 	return sim
 			
-def orng_sim_rdk_morgan_fps(smile_active, train_instance):
+def orng_sim_rdk_morgan_fps(smile_active, train_instance, radius = 2):
 	""" calculate the fingerprint similarity using the RDK morgan fingerprints
 		(circular fingerprints, ECFP, connectivity-based invariant)
 		input are a smiles string and a orange data instance
@@ -228,13 +228,13 @@ def orng_sim_rdk_morgan_fps(smile_active, train_instance):
 	if not molAct: return None
 	if not molTrain: return None
 	
-	fp_A = rdk.AllChem.GetMorganFingerprint(molAct,2)
-	fp_T = rdk.AllChem.GetMorganFingerprint(molTrain,2)
+	fp_A = rdk.AllChem.GetMorganFingerprint(molAct,radius)
+	fp_T = rdk.AllChem.GetMorganFingerprint(molTrain,radius)
 	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
 	
 	return sim
 	
-def orng_sim_rdk_morgan_features_fps(smile_active, train_instance):
+def orng_sim_rdk_morgan_features_fps(smile_active, train_instance, radius = 2):
 	""" calculate the fingerprint similarity using the RDK morgan fingerprints
 		(circular fingerprints, FCFP, feature-based invariant)
 		input are a smiles string and a orange data instance
@@ -250,8 +250,8 @@ def orng_sim_rdk_morgan_features_fps(smile_active, train_instance):
 	if not molAct: return None
 	if not molTrain: return None
     
-	fp_A = rdk.AllChem.GetMorganFingerprint(molAct,2,useFeatures=True)
-	fp_T = rdk.AllChem.GetMorganFingerprint(molTrain,2,useFeatures=True)
+	fp_A = rdk.AllChem.GetMorganFingerprint(molAct,radius,useFeatures=True)
+	fp_T = rdk.AllChem.GetMorganFingerprint(molTrain,radius,useFeatures=True)
 	sim = DataStructs.DiceSimilarity(fp_A,fp_T)
 	
 	return sim
