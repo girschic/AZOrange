@@ -107,7 +107,7 @@ def azo_pharmacophore_az_inhouse(active_id, train_instance, pharmacophore_file):
 	if not cidName: return None
 	train_id = str(int(train_instance[cidName].value))
 	
-	#print "act"
+	#print "act" + str(active_id)
 	fp_A = getPharmacophoreFP(active_id, pharmacophore_file)
 	#print "train " + str(train_id)
 	fp_T = getPharmacophoreFP(train_id, pharmacophore_file)
@@ -133,7 +133,11 @@ def getPharmacophoreFP(mol_id, pharmacophore_file):
 		splitlist.pop(0)
 		if (cid.strip() == mol_id.strip()):
 		        #print "mol found"
-			splitlist.pop(0)
+			bitcount = splitlist.pop(0)
+#			print "BITCOUNT: " + str(bitcount)
+			if (bitcount == 0 or bitcount == "0"):
+				fp_vals[0] = 0
+				break
 			for bit in range(len(splitlist)):
 				if bit % 2 == 0.0:
 					fp_vals[splitlist[bit]] = splitlist[bit+1]
@@ -163,9 +167,13 @@ def getContinuousTanimoto(fp_A, fp_B):
 		sum_b = sum_b + int(value_b)**2
 		if (bit_b in fp_A):
 			sum_c = sum_c + (int(value_b) * int(fp_A[bit_b]))
-
- 	sim = sum_c / (sum_a + sum_b - sum_c)
-	#print "A: " + str(sum_a) + " B: " + str(sum_b) + " C: " + str(sum_c) + " SIM: " + str(sim)
+	
+	# one of the molecules might have no fingerprint 
+	if (sum_a == 0 or sum_b == 0):
+		sim = 0.0
+	else:
+		sim = sum_c / (sum_a + sum_b - sum_c)
+		#print "A: " + str(sum_a) + " B: " + str(sum_b) + " C: " + str(sum_c) + " SIM: " + str(sim)
 
 	return sim
 
