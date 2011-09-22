@@ -119,13 +119,15 @@ class UnbiasedAccuracyGetter():
                     return False
         return True
 
-    def createStatObj(self, results=None, exp_pred=None, nTrainCmpds=None, nTestCmpds=None, responseType=None, nExtFolds=None, userAlert = ""):
+    def createStatObj(self, results=None, exp_pred=None, nTrainCmpds=None, nTestCmpds=None, responseType=None, nExtFolds=None, userAlert = "", rocs=None):
         #Initialize res (statObj) for statistic results
         res = {}
+        self.__log("Starting to create Stat Obj")
         # Classification
         res["CA"] = None
         res["CM"] = None
         res["MCC"] = None
+        res["ROC"] = None
         #Regression
         res["Q2"] = None
         res["RMSE"] = None
@@ -144,7 +146,8 @@ class UnbiasedAccuracyGetter():
                 #Classification
                 "CM"   : None,
                 "CA"   : None,
-                "MCC"  : None }
+                "MCC"  : None,
+                "ROC"  : None }
         if results is None or exp_pred is None or responseType is None or nExtFolds is None or nTestCmpds is None or nTrainCmpds is None:
             return res 
         res["responseType"] = responseType
@@ -160,12 +163,15 @@ class UnbiasedAccuracyGetter():
                         res["CM"][Lidx][idx] = res["CM"][Lidx][idx] + val   #Add each same ConfMat position
             #Compute MCC 
             res["MCC"] = evalUtilities.calcMCC(res["CM"])
+            #Compute ROC
+            res["ROC"] = sum(ro[0] for ro in rocs) / self.nExtFolds
             #Compute foldStat
             res["foldStat"]["nTrainCmpds"] = [n for n in nTrainCmpds]
             res["foldStat"]["nTestCmpds"] = [n for n in nTestCmpds]
             res["foldStat"]["CA"] = [r[0] for r in results]
             res["foldStat"]["CM"] = [r[1] for r in results]
             res["foldStat"]["MCC"] = [evalUtilities.calcMCC(r[1]) for r in results]
+            res["foldStat"]["ROC"] = [ro for ro in rocs]
             #Compute Stability
             res["StabilityValue"] = evalUtilities.stability(res["foldStat"]["CA"])
         else:
@@ -197,6 +203,38 @@ class UnbiasedAccuracyGetter():
                 res["stable"] = True
 
         return res
+        
+        
+        
+        
+    def aroc(self, data, classifiers):
+    	"""
+	    Taken from: 
+	    http://orange.biolab.si/doc/ofb/roc.py
+	"""
+    	ar = []
+    	for c in classifiers:
+        	p = []
+        	for d in data:
+            		p.append(c(d, orange.GetProbabilities)[0])
+        	correct = 0.0; valid = 0.0
+	        for i in range(len(data)-1):
+        		for j in range(i+1,len(data)):
+                		if data[i].getclass() <> data[j].getclass():
+			                valid += 1
+                    			if p[i] == p[j]:
+                        			correct += 0.5
+                    			elif data[i].getclass() == 0:
+                        			if p[i] > p[j]:
+                            				correct += 1.0
+                    			else:
+                        			if p[j] > p[i]:
+                            				correct += 1.0
+        ar.append(correct / valid)
+    	return ar     
+        
+        
+        
         
     def getAcc(self, algorithm = None, minsup = None, atts = None):
         """ For regression problems, it returns the RMSE and the Q2 
@@ -247,6 +285,7 @@ class UnbiasedAccuracyGetter():
             MLmethods[self.learner.name] = self.learner
 
         models={}
+        rocs={}
         self.__log("Calculating Statistics for MLmethods:")
         self.__log("  "+str([x for x in MLmethods]))
 
@@ -269,6 +308,7 @@ class UnbiasedAccuracyGetter():
             results[ml] = []
             exp_pred[ml] = []
             models[ml] = []
+            rocs[ml] = []
             nTrainEx[ml] = []
             nTestEx[ml] = []
             optAcc[ml] = []
@@ -357,6 +397,8 @@ class UnbiasedAccuracyGetter():
                 #Test the model
                 if self.responseType == "Classification":
                     results[ml].append((evalUtilities.getClassificationAccuracy(testData, model), evalUtilities.getConfMat(testData, model) ) )
+                    roc = self.aroc(testData, [model])
+                    rocs[ml].append(roc)
                 else:
                     local_exp_pred = []
                     for ex in testData:
@@ -365,7 +407,7 @@ class UnbiasedAccuracyGetter():
                     #Save the experimental value and correspondent predicted value
                     exp_pred[ml] += local_exp_pred
    
-            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt)
+            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
             if self.verbose > 0: 
                 print "UnbiasedAccuracyGetter!Results  "+ml+":\n"
                 pprint(res)
