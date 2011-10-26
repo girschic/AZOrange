@@ -332,7 +332,7 @@ def cross_validation_plusFTM(data, learners, k, f, att_list):
         train_data_ftm = getFTMDescResult(train_data, f)
 	minsupStr = str(f).replace(".","")
         filename = data.name + "_ftm_" + minsupStr + "_" + str(test_fold) + ".tab"
-        train_data.save(filename)
+        #train_data.save(filename)
         train_scaled = dataUtilities.attributeDeselectionData(train_data_ftm, att_list)
         
         # recalc and add ftm features to test fold
