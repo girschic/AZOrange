@@ -204,7 +204,7 @@ class UnbiasedAccuracyGetter():
 
         return res
         
-        
+     
         
         
     def aroc(self, data, classifiers):
@@ -301,6 +301,8 @@ class UnbiasedAccuracyGetter():
             sortedML.remove("PLS")
             sortedML.insert(0,"PLS")
 
+        stepsDone = 0
+        nTotalSteps = len(sortedML) * self.nExtFolds  
         for ml in sortedML:
           self.__log("    > "+str(ml)+"...")
           try:
@@ -412,8 +414,12 @@ class UnbiasedAccuracyGetter():
                     results[ml].append((evalUtilities.calcRMSE(local_exp_pred), evalUtilities.calcRsqrt(local_exp_pred) ) )
                     #Save the experimental value and correspondent predicted value
                     exp_pred[ml] += local_exp_pred
+                if callBack:
+                     stepsDone += 1
+                     if not callBack((100*stepsDone)/nTotalSteps): return None
    
             res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
+
             if self.verbose > 0: 
                 print "UnbiasedAccuracyGetter!Results  "+ml+":\n"
                 pprint(res)

@@ -18,11 +18,19 @@ AZORANGEHOME = os.environ["AZORANGEHOME"]
 SCRATCHDIR = "/tmp"
 NFS_SCRATCHDIR = os.path.join(os.environ["HOME"],"AZO_NFS_scratchDir")
 
+# Configurable parameters that can be overwriten by AZOrangeExtraConfig.py
+#cinfonyToolkits = ["cdk","rdk","obabel","webel"]        # NOT so stable!!
+#cinfonyToolkits = ["rdk","obabel","webel"]              # Testing Stability!!
+cinfonyToolkits = ["rdk","webel"]
+OWParamOptExecEnvs = [("Local serial", 0)]
+ 
+
+# Get config from AZOrangeExtraConfig.py if it exists
 if os.path.isfile(os.path.join(AZORANGEHOME,"azorange","AZOrangeExtraConfig.py")):
     from AZOrangeExtraConfig import *
 
 # These strings will automatically be identified as the smiles attribute of the data.
-SMILESNAMES = ["SMILES", "Molecule SMILES", "SMILES_", "Compound Structure", "glf_smiles", "MolSmiles", "Smiles", "Molecule Structure", "Structure", "SMILEStoPred", "SMILES_1", "smiles", "SMILEStoPred"]
+SMILESNAMES = ["SMILES", "Molecule SMILES", "SMILES_", "Compound Structure", "glf_smiles", "MolSmiles", "Smiles", "Molecule Structure", "Structure", "SMILEStoPred", "SMILES_1", "smiles"]
 AZIDNAMES = ["Compound Name", "MolName"]
 
 
@@ -171,3 +179,7 @@ QSARSTABILITYTHRESHOLD_CLASS_L = 0.1    #Max stability value for a model to be c
 QSARSTABILITYTHRESHOLD_CLASS_H = 0.1    #Max stability value for a model to be considered stable when testset has less than 50 cmpds
 QSARSTABILITYTHRESHOLD_REG_L = 0.1      #Max stability value for a model to be considered stable when testset has more than 50 cmpds
 QSARSTABILITYTHRESHOLD_REG_H = 0.2      #Max stability value for a model to be considered stable when testset has less than 50 cmpds
+
+SGE_QSUB_ARCH_OPTION_64BIT = " -l arch=lx24-amd64 "
+SGE_QSUB_ARCH_OPTION_CURRENT = SGE_QSUB_ARCH_OPTION_64BIT
+ 

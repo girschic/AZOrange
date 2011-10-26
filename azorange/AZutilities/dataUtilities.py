@@ -1434,7 +1434,7 @@ def horizontalMerge(dataAin, dataBin, varAin, varBin):
             etBreduced.append(orange.Example(domBreduced, exBDK))
      
     # Rename the classVar to use so that it does not get renamed by fixDuplicatedNames
-    ClassTag = "@CLASS@"
+    ClassTag = "@@CLASS@@"
     if classVarName:
         if not classVarIsA and classVarName in etBreduced.domain:
             etBreduced.domain[classVarName].name = classVarName + ClassTag
@@ -2147,9 +2147,13 @@ def getApproxMemReq(filePath):
     This number needs to be refined.)
     filePath is the location of an Orange data set on disk
     """
-    dataInfo = getQuickDataSize(filePath)
-    nEx = dataInfo["N_EX"] 
-    nAttr = dataInfo["N_ATTR"] 
+    if type(filePath) == str:
+        dataInfo = getQuickDataSize(filePath)
+        nEx = dataInfo["N_EX"] 
+        nAttr = dataInfo["N_ATTR"] 
+    else: # in case a DataTable was passed in
+        nEx = len(filePath)
+        nAttr = len(filePath.domain.attributes)
 
     memReq = int(nEx*nAttr*8*2*5*0.000001)
     if memReq < 150:
