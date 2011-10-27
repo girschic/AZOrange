@@ -11,6 +11,7 @@ import os,random
 from pprint import pprint
 import statc
 from AZutilities import getStructuralDesc
+#import sys
 
 
 class UnbiasedAccuracyGetter():
@@ -148,7 +149,8 @@ class UnbiasedAccuracyGetter():
                 "CA"   : None,
                 "MCC"  : None,
                 "ROC"  : None }
-        if results is None or exp_pred is None or responseType is None or nExtFolds is None or nTestCmpds is None or nTrainCmpds is None:
+        if results is None:# or exp_pred is None or responseType is None or nExtFolds is None or nTestCmpds is None or nTrainCmpds is None:
+	    self.__log("    NONE...")
             return res 
         res["responseType"] = responseType
         #Calculate the (Q2, RMSE) or (CM, CA) results depending on Classification or regression
@@ -236,7 +238,7 @@ class UnbiasedAccuracyGetter():
         
         
         
-    def getAcc(self, algorithm = None, minsup = None, atts = None):
+    def getAcc(self, callBack = None, algorithm = None, minsup = None, atts = None):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"Q2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -319,6 +321,7 @@ class UnbiasedAccuracyGetter():
                 if type(self.learner) == dict:
                     self.paramList = None
 
+
                 trainData = self.data.select(DataIdxs[foldN],negate=1)
                 orig_len = len(trainData.domain.attributes)
                 # add structural descriptors to the training data (TG)
@@ -364,6 +367,7 @@ class UnbiasedAccuracyGetter():
                         optAcc[ml].append(R2)
                 else:
                     runPath = miscUtilities.createScratchDir(baseDir = AZOC.NFS_SCRATCHDIR, desc = "AccWOptParam", seed = id(trainData))
+		    self.__log("	run path:"+str(runPath))
                     trainData.save(os.path.join(runPath,"trainData.tab"))
 
                     tunedPars = paramOptUtilities.getOptParam(
@@ -402,11 +406,7 @@ class UnbiasedAccuracyGetter():
                 if self.responseType == "Classification":
                     results[ml].append((evalUtilities.getClassificationAccuracy(testData, model), evalUtilities.getConfMat(testData, model) ) )
                     roc = self.aroc(testData, [model])
-                    rocs[ml].append(roc)
-                    
-                # save the prediction probabilities
-                
-                    
+                    rocs[ml].append(roc)                      
                 else:
                     local_exp_pred = []
                     for ex in testData:
@@ -417,7 +417,7 @@ class UnbiasedAccuracyGetter():
                 if callBack:
                      stepsDone += 1
                      if not callBack((100*stepsDone)/nTotalSteps): return None
-   
+	   
             res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
 
             if self.verbose > 0: 
@@ -429,8 +429,11 @@ class UnbiasedAccuracyGetter():
             self.__writeResults(statistics)
             self.__log("       OK")
           except:
+	    #print "Unexpected error:",
+	    #print sys.exc_info()[0]
+	    #print sys.exc_info()[1]
             self.__log("       Learner "+str(ml)+" failed to create/optimize the model!")
-            res = self.createStatObj()
+            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
             statistics[ml] = copy.deepcopy(res)
             self.__writeResults(statistics)
 
