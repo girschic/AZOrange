@@ -238,7 +238,7 @@ class UnbiasedAccuracyGetter():
         
         
         
-    def getAcc(self, callBack = None, algorithm = None, minsup = None, atts = None):
+    def getAcc(self, callBack = None, algorithm = None, minsup = None, atts = None, holdout = None):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"Q2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -259,6 +259,9 @@ class UnbiasedAccuracyGetter():
         if not self.__areInputsOK():
             return None
         
+	if holdout:
+	    self.nExtFolds = 1
+
         if (algorithm):
             self.__log(" Additional structural features to be calculated inside of cross-validation")
             self.__log(" Algorithm for structural features: "+str(algorithm))
@@ -269,7 +272,12 @@ class UnbiasedAccuracyGetter():
         self.__log("  "+str(self.responseType))
 
         #Create the Train and test sets
-        DataIdxs = dataUtilities.SeedDataSampler(self.data, self.nExtFolds) 
+	DataIdxs = None
+	if (holdout):
+	    self.__log("Using hold out evaluation with " + str(holdout) + "*100 % of data for training")
+	    DataIdxs = dataUtilities.SeedDataSampler_holdOut(self.data, holdout)
+	else:
+            DataIdxs = dataUtilities.SeedDataSampler(self.data, self.nExtFolds) 
         
         #Var for saving each Fols result
         optAcc = {}
@@ -291,12 +299,12 @@ class UnbiasedAccuracyGetter():
         self.__log("Calculating Statistics for MLmethods:")
         self.__log("  "+str([x for x in MLmethods]))
 
-        #Check data in advance so that, by chance, it will not faill at the last fold!
+        # Check data in advance so that, by chance, it will not fail at the last fold!
         for foldN in range(self.nExtFolds):
             trainData = self.data.select(DataIdxs[foldN],negate=1)
             self.__checkTrainData(trainData)
 
-        #Optional!!
+        # Optional!!
         # Order Learners so that PLS is the first
         sortedML = [ml for ml in MLmethods]
         if "PLS" in sortedML:
@@ -331,8 +339,6 @@ class UnbiasedAccuracyGetter():
 
                 
                 testData = self.data.select(DataIdxs[foldN])
-                #print "IDX: ",
-                #print DataIdxs[foldN]
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
 		        cut_off = orig_len - len(atts)
@@ -367,7 +373,7 @@ class UnbiasedAccuracyGetter():
                         optAcc[ml].append(R2)
                 else:
                     runPath = miscUtilities.createScratchDir(baseDir = AZOC.NFS_SCRATCHDIR, desc = "AccWOptParam", seed = id(trainData))
-		    self.__log("	run path:"+str(runPath))
+#		    self.__log("	run path:"+str(runPath))
                     trainData.save(os.path.join(runPath,"trainData.tab"))
 
                     tunedPars = paramOptUtilities.getOptParam(
@@ -517,7 +523,9 @@ class UnbiasedAccuracyGetter():
 
 
 
-
+    """
+	STILL IN DEVELOPMENT...NOT FUNCTIONAL OR NEEDED RIGHT NOW 
+    """
     def getProbabilitiesAsAttribute(self, algorithm = None, minsup = None, atts = None):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat

@@ -75,6 +75,47 @@ def SeedDataSampler(data, nFolds):
 
 
 
+def SeedDataSampler_holdOut(data, trainFraction):
+    """ Samples the data for being used in hold out: 
+	randomly selects trainFraction (e.g. 0.66) instances randomly for training, the rest remains for testing
+        Outputs the respective "fold" indices like in the CV case, not the actual data. 
+        Output example:
+                [[0 0 1 1 0 1 0 0 0]]
+        Where (0s) represents the train set
+              (1s) represents the test set
+           for each fold
+
+        Usage sample:
+            DataIdxs = dataUtilities.SeedDataSampler_holdOut(self.data, 0.66)
+            trainData = self.data.select(DataIdxs[0],negate=1)
+            testData = self.data.select(DataIdxs) 
+    """
+    if not data or not trainFraction:
+        return None
+    nEx = len(data)
+    nTrainEx = int(nEx*trainFraction)
+    nTestEx = nEx - nTrainEx
+    if not nTestEx:
+        return None
+    usedReg = [0] * nEx
+    foldsIdxs = []
+    nFolds = 1
+    for n in range(nFolds):
+        foldsIdxs.append([0] * nEx)
+
+    random.seed()
+    for x in range(nTestEx):
+        Zidx = int(random.random() * (usedReg.count(0) - 1))
+           #Find the index of the Zidx'th Zero  
+        realIdx = [idxReg[0] for idxReg in enumerate(usedReg) if idxReg[1]==0][Zidx]
+        usedReg[realIdx] = 1
+        foldsIdxs[0][realIdx] = 1
+
+#    print foldsIdxs
+    return foldsIdxs
+
+
+
 def getPossibleMetas(data, checkIndividuality = False):
     """Retuns a list of attributes that sould be considered meta but they were not.
         Criteria for considering an attribute as meta:

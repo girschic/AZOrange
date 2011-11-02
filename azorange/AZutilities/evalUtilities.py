@@ -19,6 +19,36 @@ verbose = 0
 CLASSIFICATION = 1  # 0b00000001
 REGRESSION = 2      # 0b00000010
 
+
+def corrected_paired_resampled_ttest(a, b, nTrain, nTest):
+    """ Calculates the t-value for the corrected resampled t-test
+	a and b are lists of the performances of learners a and b on the test data
+	nTrain and nTest are the number of training and testing instances
+	t = d_mean / [sqrt(1/k + n2/n1)*sigma_d^2]
+    """
+    print a
+    print b
+
+    if len(a) <> len(b):
+        raise ValueError, 'Unequal length lists in corrected_resampled_ttest'
+    
+    k = len(a)
+    print "K : " + str(k)
+    diffs = [0]*k
+    #print a
+    for i in range(k):
+	diffs[i] = a[i] - b[i]
+
+    
+    d_mean = numpy.mean(diffs)
+    print "D : " + str(d_mean)
+    sigma = numpy.std(diffs)
+    print "STD: " + str(sigma)
+    Q = (1/k) + (nTest/nTrain)
+    t = d_mean / math.sqrt(Q* sigma*sigma)
+    return t
+    
+
 def tanimotoSimilarity(A, B):
     """Calculates the tanimnoto similarity defined by:
              ts = c/(a+b-c)
@@ -149,7 +179,6 @@ def ConfMat(res = None):
         """
         if res == None:
             return {"type":CLASSIFICATION}
-
         confMat_s = orngStat.confusionMatrices(res)
         retCM = []
         for confMat in confMat_s:
@@ -208,6 +237,7 @@ def generalCVconfMat(data, learners, nFolds = 5):
 
 def getClassificationAccuracy(testData, classifier):
     if not len(testData):
+	self.__log("    bad test data")
         return 0.0
     correct = 0.0
     for ex in testData:
