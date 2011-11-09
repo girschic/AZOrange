@@ -171,8 +171,8 @@ def getFTMDescResult(data,minSup):
 		It expects a relative minimum frequency parameter and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
 		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
 	"""
-	sdf_mols, temp_occ = makeTempFilesFTM(data)
-		
+	sdf_mols = makeTempSDF(data)
+	temp_occ = tempfile.NamedTemporaryFile()	
 	# start FTM subprocess
 	ftm(temp_occ.name, minSup, sdf_mols.name)
 	#ftm(temp_occ.name, minSup, 'testftm.sdf')
@@ -224,17 +224,15 @@ def getFTMDescResult(data,minSup):
 	return newdata
 
 
-def makeTempFilesFTM(data):
-	"""	create temporary files for FTM I/O
-		returns to file objects that still have to be closed!
-		temp_occ contains the occurrence list of substructures (result)
-		sdf_mols is for the FTM input (SDF structure file)
+def makeTempSDF(data):
+	"""	create temporary SFD file for usage with, e.g., FTM or other integrated algorithms
+		that need SDF input.
+		returns a file object that still has to be closed!
 	"""
 	
 	smilesName = getSMILESAttr(data)
 	if not smilesName: return None
 	
-	temp_occ = tempfile.NamedTemporaryFile()
 	sdf_mols = tempfile.NamedTemporaryFile(suffix='.sdf') 
     
     # write structures in sdf format to this file
@@ -257,7 +255,7 @@ def makeTempFilesFTM(data):
 	#print "Number of molecules that could not be read: ", count
 	#print "Number of molecules read: ", count_mols
 
-	return sdf_mols, temp_occ
+	return sdf_mols
 	
 
 def getSMARTSrecalcDesc(data,smarts):
