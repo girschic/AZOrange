@@ -365,31 +365,6 @@ def orng_sim_rdk_atompair_fps(smile_active, train_instance):
         return sim
         
 
-def get_similarity_matrix(actives, trainset, methods):
-        """ calculates similarity descriptors for a training set (list of smiles) using the 
-                given similarity methods against the given actives
-                Possible method strings in methods are the names of the sim_* methods below,
-                e.g. rdk_topo_fps for sim_rdk_topo_fps
-        """
-        sim_matrix = []
-        for m in methods:
-                if m == 'rdk_topo_fps':
-                        for a in actives:
-                                sim_matrix.append(sim_rdk_topo_fps(a, trainset))
-                elif m == 'rdk_MACCS_keys':
-                        for a in actives:
-                                sim_matrix.append(sim_rdk_MACCS_keys(a, trainset))
-                elif m == 'rdk_morgan_fps':
-                        for a in actives:
-                                sim_matrix.append(sim_rdk_morgan_fps(a, trainset)) 
-                elif m == 'rdk_atompair_fps':
-                        for a in actives:
-                                sim_matrix.append(sim_rdk_atompair_fps(a, trainset)) 
-                                
-        return sim_matrix
-
-
-
 def sim_rdk_topo_fps(smiA, smisT):
         """ calculate the fingerprint similarity using the RDK atompair fingerprints
                 input are a smiles string and a list of smiles strings
