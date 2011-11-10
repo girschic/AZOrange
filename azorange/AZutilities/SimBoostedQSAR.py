@@ -24,7 +24,16 @@ methods = { "RDKit Topological"               :'rdk_topo_fps',
             #"AZO-pharmacophore fps"    :'azo_pharmacophore_fps'
 } 
 
-def getSimDescriptors(InActives, InData, methods, active_ids = None, pharmacophore_file = None, callBack = None):
+def getSimDescriptors_data(InReferenceData, InData, methods, active_ids = None, pharmacophore_file = None, callBack = None):
+	""" wrapper function to be able to call getSimDescriptors with two dataset objects (reference compounds and dataset) instead of a list of reference compounds and a dataset
+	"""
+	# get the list of reference compounds from the reference dataset object	
+
+	result = getSimDescriptors(InReference, InData, methods, active_ids, pharmacophore_file, callBack)
+	
+	return result
+
+def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacophore_file = None, callBack = None):
         """ calculates similarity descriptors for a training set (orange object) using the 
                 given similarity methods against the given actives
                 Possible method strings in methods are the names of the sim_* methods below,
@@ -55,7 +64,7 @@ def getSimDescriptors(InActives, InData, methods, active_ids = None, pharmacopho
             # Process  Input actives
             activesDomain = orange.Domain([orange.StringVariable("OrigSMI_ID"), orange.StringVariable("SMILES")],0) 
             activesData = orange.ExampleTable(activesDomain)
-            for act in InActives:
+            for act in InReference:
                 activesData.append([act,act])
             extraUtilities.StandardizeSMILES(activesData, smiAttr = "SMILES", cName="OrigSMI_ID")
             #print activesData.domain
@@ -64,7 +73,7 @@ def getSimDescriptors(InActives, InData, methods, active_ids = None, pharmacopho
                 actives.append(str(ex["SMILES"].value))
         else:
             data = InData
-            actives = InActives  
+            actives = InReference  
             cleanedData = False
 
         # adjust the header
