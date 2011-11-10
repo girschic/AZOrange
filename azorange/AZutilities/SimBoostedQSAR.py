@@ -34,7 +34,7 @@ def getSimDescriptors(InActives, InData, methods, active_ids = None, pharmacopho
                 the callBack function shall return True of False which will indicate to this method if the process it to be continued or Not.
                    e.g. if callBack(25) == False it indicates the caller want's to stop the process of calculating descriptors                 
         """
-        # Pre-process input Data tto standardize the SMILES
+        # Pre-process input Data to standardize the SMILES
         SMILESattr = getSMILESAttr(InData)
         
         if not SMILESattr:
@@ -72,7 +72,7 @@ def getSimDescriptors(InActives, InData, methods, active_ids = None, pharmacopho
         for m in methods:
                 count = 1
                 for a in actives:
-                        attname = m + '(active_'+ str(count)+ ')'
+                        attname = m + '(reference_'+ str(count)+ ')'
                         atts.append(orange.FloatVariable(attname))
                         count += 1        
                         
