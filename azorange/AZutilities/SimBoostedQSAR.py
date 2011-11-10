@@ -28,6 +28,13 @@ def getSimDescriptors_data(InReferenceData, InData, methods, active_ids = None, 
 	""" wrapper function to be able to call getSimDescriptors with two dataset objects (reference compounds and dataset) instead of a list of reference compounds and a dataset
 	"""
 	# get the list of reference compounds from the reference dataset object	
+	InReference = []
+	for x in InReferenceData:
+		smilesName = getSMILESAttr(x)
+	        if not smilesName: print "OUTCH\n"
+        	smile = str(x[smilesName].value)
+		InReference.append(smile)
+
 
 	result = getSimDescriptors(InReference, InData, methods, active_ids, pharmacophore_file, callBack)
 	
