@@ -1,1 +1,0 @@
-g++ -o gspan3 -O2 gspan_all_BB.cpp
