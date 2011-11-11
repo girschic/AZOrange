@@ -171,7 +171,7 @@ def getFTMDescResult(data,minSup):
 		It expects a relative minimum frequency parameter and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
 		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
 	"""
-	sdf_mols = makeTempSDF(data)
+	sdf_mols = makeTempSDF(data, smilesAsName=1)
 	temp_occ = tempfile.NamedTemporaryFile()	
 	# start FTM subprocess
 	ftm(temp_occ.name, minSup, sdf_mols.name)
@@ -224,7 +224,7 @@ def getFTMDescResult(data,minSup):
 	return newdata
 
 
-def makeTempSDF(data):
+def makeTempSDF(data, smilesAsName=None):
 	"""	create temporary SFD file for usage with, e.g., FTM or other integrated algorithms
 		that need SDF input.
 		returns a file object that still has to be closed!
@@ -247,8 +247,9 @@ def makeTempSDF(data):
 			count += 1
 			#print "ALERT"
 			continue
-		# set smiles as molname (just to have any name)	
-		m.SetProp("_Name", "-->"+smile)
+		if (smilesAsName):
+			# set smiles as molname (just to have any name)	
+			m.SetProp("_Name", "-->"+smile)
 		w.write(m)
 
 		count_mols+=1
