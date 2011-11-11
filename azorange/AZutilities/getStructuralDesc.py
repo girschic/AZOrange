@@ -249,7 +249,7 @@ def makeTempSDF(data, smilesAsName=None):
 			continue
 		if (smilesAsName):
 			# set smiles as molname (just to have any name)	
-			m.SetProp("_Name", "-->"+smile)
+			m.SetProp("_Name", smile)
 		w.write(m)
 
 		count_mols+=1

@@ -61,6 +61,7 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
             # Call a method for standardizing the SMILES in Data.
             # The method is expected to change the attribute defined as smiAttr in data object
             cleanedData = True
+	    #print "MALALALALAl"
             # Process InData
             tmpDomain =  orange.Domain([orange.StringVariable("OrigSMI_ID")]+[attr for attr in InData.domain])
             data = orange.ExampleTable(tmpDomain,InData)
@@ -80,6 +81,7 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                 actives.append(str(ex["SMILES"].value))
         else:
             data = InData
+	    print "NO cleaning"
             actives = InReference  
             cleanedData = False
 
@@ -89,6 +91,8 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                 count = 1
                 for a in actives:
                         attname = m + '(reference_'+ str(count)+ ')'
+			print "ATT: " + str(attname)
+			print "M: " + str(m)
                         atts.append(orange.FloatVariable(attname))
                         count += 1        
                         
