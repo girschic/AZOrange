@@ -26,27 +26,28 @@ def corrected_paired_resampled_ttest(a, b, nTrain, nTest):
 	nTrain and nTest are the number of training and testing instances
 	t = d_mean / [sqrt(1/k + n2/n1)*sigma_d^2]
     """
-    print a
-    print b
-
     if len(a) <> len(b):
-        raise ValueError, 'Unequal length lists in corrected_resampled_ttest'
+        raise ValueError, 'Unequal length lists in corrected_paired_resampled_ttest'
     
     k = len(a)
     print "K : " + str(k)
     diffs = [0]*k
-    #print a
+
     for i in range(k):
 	diffs[i] = a[i] - b[i]
 
-    
+    var_a = numpy.var(a)
+    var_b = numpy.var(b)
+    var_est = var_a/k + var_b/k
+    print "VAR_EST= " + str(var_est)
+
     d_mean = numpy.mean(diffs)
     print "D : " + str(d_mean)
-    sigma = numpy.std(diffs)
-    print "STD: " + str(sigma)
+  
     Q = (1/k) + (nTest/nTrain)
-    t = d_mean / math.sqrt(Q* sigma*sigma)
-    return t
+    t = d_mean / math.sqrt(Q* var_est)
+
+    return t, numpy.mean(a), numpy.mean(b), numpy.std(a), numpy.std(b)
     
 
 def tanimotoSimilarity(A, B):
