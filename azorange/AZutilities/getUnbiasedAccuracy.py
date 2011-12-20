@@ -339,12 +339,12 @@ class UnbiasedAccuracyGetter():
                 trainData = self.data.select(DataIdxs[foldN],negate=1)
                 orig_len = len(trainData.domain.attributes)
 		refs = None
+		methods = ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps']
                 # add structural descriptors to the training data (TG) 
                 if (algorithm):
-			for a in algorithm:
-				if (a == "structClust"):
-					self.__log(a)
-					
+			for i in range(len(algorithm)):
+				if (algorithm[i] == "structClust"):
+					self.__log("Algorithm " +str(i) + ": " + str(algorithm[i]))
 					actData = orange.ExampleTable(trainData.domain)
 					for d in trainData:
 						#only valid for simboosted qsar paper experiments!?
@@ -353,30 +353,43 @@ class UnbiasedAccuracyGetter():
 					
 					refs = structuralClustering.getReferenceStructures(actData,threshold=params['threshold'],minClusterSize=params['minClusterSize'],numThreads=2)
 					self.__log(" found " + str(len(refs)) + " reference structures in " + str(len(actData)) + " active structures")
-					trainData_sim = SimBoostedQSAR.getSimDescriptors(refs, trainData, ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps'])
-					trainData = dataUtilities.attributeDeselectionData(trainData_sim, atts)
-					#trainData_sim.save("/home/girschic/proj/AZ/ProjDev/631TEST.tab")
-				else:
-					self.__log(a)
-			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, a, params['minsup'])
-        			        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
+					orig_len = orig_len + (len(refs)*len(methods))
+					trainData_sim = SimBoostedQSAR.getSimDescriptors(refs, trainData, methods)
 
-                
+					if (i == (len(algorithm)-1)):
+						trainData = dataUtilities.attributeDeselectionData(trainData_sim, atts)
+					else: 
+						trainData = dataUtilities.attributeDeselectionData(trainData_sim, [])
+				else:
+					self.__log(algorithm[i])
+			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm[i], params['minsup'])
+					if (i == (len(algorithm)-1)):
+						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
+					else:
+						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
+
+               # trainData.save("/home/girschic/proj/AZ/ProjDev/631TEST.tab")
                 testData = self.data.select(DataIdxs[foldN])
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
-			for a in algorithm:
-				if (a == "structClust"):
-					self.__log("test: " + str(a))
-					testData_sim = SimBoostedQSAR.getSimDescriptors(refs, testData, ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps'])
-					testData = dataUtilities.attributeDeselectionData(testData_sim, atts)
+			for i in range(len(algorithm)):
+				if (algorithm[i] == "structClust"):
+					self.__log("test: " + str(algorithm[i]))
+					testData_sim = SimBoostedQSAR.getSimDescriptors(refs, testData, methods)
+					if (i == (len(algorithm)-1)):
+						testData = dataUtilities.attributeDeselectionData(testData_sim, atts)
+					else:
+						testData = dataUtilities.attributeDeselectionData(testData_sim, [])
 				else:
 					cut_off = orig_len - len(atts)
 		                	smarts = trainData.domain.attributes[cut_off:]
                 			self.__log("  Number of structural features added: "+str(len(smarts)))
 	        		        testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
-	        		        testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
-		
+					if (i == (len(algorithm)-1)):
+						testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
+					else:
+						testData = dataUtilities.attributeDeselectionData(testData_structDesc, [])
+	
                 
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
