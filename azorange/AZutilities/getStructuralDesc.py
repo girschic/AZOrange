@@ -150,9 +150,9 @@ def getBBRCsmartsList(data,minSup):
 
         features = []
         # gather results for every root node in vector instead of immediate output
-        for j in range(0, Fminer.GetNoRootNodes()-1):
+        for j in range(0, Fminer.GetNoRootNodes()):
                 result = Fminer.MineRoot(j);
-                for i in range(0, result.size()-1):
+                for i in range(0, result.size()):
                         #print result[i]
                         # YAML
                         # - [ smarts,    p_chisq,    occ_list_class1,    occ_list_class2,    ... ]                       
