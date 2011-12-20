@@ -31,7 +31,7 @@ def getSimDescriptors_data(InReferenceData, InData, methods, active_ids = None, 
 	InReference = []
 	for x in InReferenceData:
 		smilesName = getSMILESAttr(x)
-	        if not smilesName: print "OUTCH\n"
+	        if not smilesName: print "There is no SMILES attribute given\n"
         	smile = str(x[smilesName].value)
 		InReference.append(smile)
 
@@ -61,7 +61,6 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
             # Call a method for standardizing the SMILES in Data.
             # The method is expected to change the attribute defined as smiAttr in data object
             cleanedData = True
-	    #print "MALALALALAl"
             # Process InData
             tmpDomain =  orange.Domain([orange.StringVariable("OrigSMI_ID")]+[attr for attr in InData.domain])
             data = orange.ExampleTable(tmpDomain,InData)
@@ -91,8 +90,8 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                 count = 1
                 for a in actives:
                         attname = m + '(reference_'+ str(count)+ ')'
-			print "ATT: " + str(attname)
-			print "M: " + str(m)
+			#print "ATT: " + str(attname)
+			#print "M: " + str(m)
                         atts.append(orange.FloatVariable(attname))
                         count += 1        
                         
@@ -115,7 +114,13 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                                 attname = m + '(active_'+ str(count)+ ')'
                                 for j in range(len(newdata)):
                                         instance = newdata[j]
-                                        tmp = orange.Value(atts[att_idx], orng_sim_rdk_topo_fps(a, instance))
+					val = 0.0
+					try:
+						val = orng_sim_rdk_topo_fps(a, instance)
+					except RuntimeError:
+						print str(a) +" and " +str(instance) +  "- unable to calculate topo fp"
+						
+                                        tmp = orange.Value(atts[att_idx], val)
                                         instance[atts[att_idx]] = tmp
                                         if callBack: 
                                             stepsDone += 1
@@ -125,10 +130,17 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                 elif m == 'rdk_MACCS_keys':
                         count = 1
                         for a in actives:
+				c = 1
                                 attname = m + '(active_'+ str(count)+ ')'
                                 for j in range(len(newdata)):
                                         instance = newdata[j]
-                                        tmp = orange.Value(atts[att_idx], orng_sim_rdk_MACCS_keys(a, instance))
+					val = 0.0
+					try:
+						val = orng_sim_rdk_MACCS_keys(a, instance)
+					except RuntimeError:
+						print str(a) + " and " +str(instance) + "- unable to calculate MACCS key"
+
+                                        tmp = orange.Value(atts[att_idx], val)
                                         instance[atts[att_idx]] = tmp
                                         if callBack: 
                                             stepsDone += 1
@@ -142,7 +154,13 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                                 attname = m + '(active_'+ str(count)+ ')'
                                 for j in range(len(newdata)):
                                         instance = newdata[j]
-                                        tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_fps(a, instance))
+					val = 0.0
+					try:
+						val = orng_sim_rdk_morgan_fps(a, instance)
+					except RuntimeError:
+						print str(a) + " and " +str(instance) + "- unable to calculate morgan fp"
+
+                                        tmp = orange.Value(atts[att_idx], val)
                                         instance[atts[att_idx]] = tmp
                                         if callBack: 
                                             stepsDone += 1
@@ -156,7 +174,13 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                                 attname = m + '(active_'+ str(count)+ ')'
                                 for j in range(len(newdata)):
                                         instance = newdata[j]
-                                        tmp = orange.Value(atts[att_idx], orng_sim_rdk_morgan_features_fps(a, instance))
+					val = 0.0
+					try: 
+						val = orng_sim_rdk_morgan_features_fps(a, instance)
+					except RuntimeError:
+						print str(a) + " and " +str(instance) + "- unable to calculate morgan features fp"
+
+                                        tmp = orange.Value(atts[att_idx], val)
                                         instance[atts[att_idx]] = tmp
                                         if callBack: 
                                             stepsDone += 1
@@ -170,7 +194,13 @@ def getSimDescriptors(InReference, InData, methods, active_ids = None, pharmacop
                                 attname = m + '(active_'+ str(count)+ ')'
                                 for j in range(len(newdata)):
                                         instance = newdata[j]
-                                        tmp = orange.Value(atts[att_idx], orng_sim_rdk_atompair_fps(a, instance))
+					val = 0.0
+					try:
+						val = orng_sim_rdk_atompair_fps(a, instance)
+					except RuntimeError:
+						print str(a) + " and " +str(instance) + "- unable to calculate topo fp"
+
+                                        tmp = orange.Value(atts[att_idx], val)
                                         instance[atts[att_idx]] = tmp                
                                         if callBack: 
                                             stepsDone += 1
@@ -311,7 +341,10 @@ def orng_sim_rdk_MACCS_keys(smile_active, train_instance):
     
         if not molAct: return None
         if not molTrain: return None
-    
+	
+	#print "Train: " + str(smile_train)
+	#print "Act: " + str(smile_active)    
+
         fp_A = rdk.Chem.MACCSkeys.GenMACCSKeys(molAct)
         fp_T = rdk.Chem.MACCSkeys.GenMACCSKeys(molTrain)
         sim = DataStructs.FingerprintSimilarity(fp_A,fp_T)

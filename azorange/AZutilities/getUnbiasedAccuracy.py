@@ -11,7 +11,9 @@ import os,random
 from pprint import pprint
 import statc
 from AZutilities import getStructuralDesc
-#import sys
+from AZutilities import structuralClustering
+from AZutilities import SimBoostedQSAR
+import sys
 
 
 class UnbiasedAccuracyGetter():
@@ -238,7 +240,7 @@ class UnbiasedAccuracyGetter():
         
         
         
-    def getAcc(self, callBack = None, algorithm = None, minsup = None, atts = None, holdout = None):
+    def getAcc(self, callBack = None, algorithm = None, params = None, atts = None, holdout = None):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"Q2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -250,8 +252,8 @@ class UnbiasedAccuracyGetter():
             It some error occurred, the respective values in the Dict will be None
                 
 			parameters:
-                algo - key for the structural feature generation algorithm (set dependent structural features that have to be calculated inside the crossvalidation)
-                minsup - minimum support for the algorithm
+                algorithm - list of feature generation algorithms (set dependent features that have to be calculated inside the crossvalidation)
+                params - dictionary of parameters
                 atts - attributes to be removed before learning (e.g. meta etc...)
         """
         self.__log("Starting Calculating MLStatistics")
@@ -263,9 +265,12 @@ class UnbiasedAccuracyGetter():
 	    self.nExtFolds = 1
 
         if (algorithm):
-            self.__log(" Additional structural features to be calculated inside of cross-validation")
-            self.__log(" Algorithm for structural features: "+str(algorithm))
-            self.__log(" Minimum support parameter: "+str(minsup))
+            self.__log(" Additional features to be calculated inside of cross-validation")
+	    for i in algorithm:
+	        self.__log(" Algorithm: " + str(i))
+	    for j,v in params.iteritems():
+	        self.__log(" Parameter: " + str(j) + " = " + str(v))
+
             
         # Set the response type
         self.responseType =  self.data.domain.classVar.varType == orange.VarTypes.Discrete and "Classification"  or "Regression"
@@ -325,6 +330,7 @@ class UnbiasedAccuracyGetter():
             nTestEx[ml] = []
             optAcc[ml] = []
             logTxt = "" 
+	    
             for foldN in range(self.nExtFolds):
                 if type(self.learner) == dict:
                     self.paramList = None
@@ -332,20 +338,45 @@ class UnbiasedAccuracyGetter():
 
                 trainData = self.data.select(DataIdxs[foldN],negate=1)
                 orig_len = len(trainData.domain.attributes)
-                # add structural descriptors to the training data (TG)
+		refs = None
+                # add structural descriptors to the training data (TG) 
                 if (algorithm):
-	               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm, minsup)
-        	        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
+			for a in algorithm:
+				if (a == "structClust"):
+					self.__log(a)
+					
+					actData = orange.ExampleTable(trainData.domain)
+					for d in trainData:
+						#only valid for simboosted qsar paper experiments!?
+						if (d.getclass() == "2"):
+							actData.append(d)
+					
+					refs = structuralClustering.getReferenceStructures(actData,threshold=params['threshold'],minClusterSize=params['minClusterSize'],numThreads=2)
+					self.__log(" found " + str(len(refs)) + " reference structures in " + str(len(actData)) + " active structures")
+					trainData_sim = SimBoostedQSAR.getSimDescriptors(refs, trainData, ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps'])
+					trainData = dataUtilities.attributeDeselectionData(trainData_sim, atts)
+					trainData_sim.save("/home/girschic/proj/AZ/ProjDev/631TEST.tab")
+				else:
+					self.__log(a)
+			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, a, params['minsup'])
+        			        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
 
                 
                 testData = self.data.select(DataIdxs[foldN])
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
-		        cut_off = orig_len - len(atts)
-                	smarts = trainData.domain.attributes[cut_off:]
-                	self.__log("  Number of structural features added: "+str(len(smarts)))
-	                testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
-	                testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
+			for a in algorithm:
+				if (a == "structClust"):
+					self.__log("test: " + str(a))
+					testData_sim = SimBoostedQSAR.getSimDescriptors(refs, testData, ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps'])
+					testData = dataUtilities.attributeDeselectionData(testData_sim, atts)
+				else:
+					cut_off = orig_len - len(atts)
+		                	smarts = trainData.domain.attributes[cut_off:]
+                			self.__log("  Number of structural features added: "+str(len(smarts)))
+	        		        testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
+	        		        testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
+		
                 
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
@@ -435,9 +466,9 @@ class UnbiasedAccuracyGetter():
             self.__writeResults(statistics)
             self.__log("       OK")
           except:
-	    #print "Unexpected error:",
-	    #print sys.exc_info()[0]
-	    #print sys.exc_info()[1]
+	    print "Unexpected error:",
+	    print sys.exc_info()[0]
+	    print sys.exc_info()[1]
             self.__log("       Learner "+str(ml)+" failed to create/optimize the model!")
             res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
             statistics[ml] = copy.deepcopy(res)
