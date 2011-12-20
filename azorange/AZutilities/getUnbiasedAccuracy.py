@@ -355,7 +355,7 @@ class UnbiasedAccuracyGetter():
 					self.__log(" found " + str(len(refs)) + " reference structures in " + str(len(actData)) + " active structures")
 					trainData_sim = SimBoostedQSAR.getSimDescriptors(refs, trainData, ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps'])
 					trainData = dataUtilities.attributeDeselectionData(trainData_sim, atts)
-					trainData_sim.save("/home/girschic/proj/AZ/ProjDev/631TEST.tab")
+					#trainData_sim.save("/home/girschic/proj/AZ/ProjDev/631TEST.tab")
 				else:
 					self.__log(a)
 			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, a, params['minsup'])
