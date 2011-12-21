@@ -165,6 +165,68 @@ def getCdkDescResult(data,descList):
 
     return resData
   
+
+def getRdkFPforTestInstance(domain,ex, radius = 1):
+    """ Calculates the descriptor attributes (rdk.FingerPrints) for a test/prediction instance 
+	It expects the domain of the model or training set and the Example itself
+	It returns an Example with the added attributes
+    """
+    if "rdk" not in toolkitsEnabled:
+	return None
+
+    # this should be changed!
+    smilesName = domain[0]
+
+    # read relevant FP attributes from the domain
+    IDs = {}
+    additional_att = []
+    for att in domain:
+	if (att.name.startswith("rdk.FP_")):
+	    IDs[str(att.name.replace("rdk.FP_",""))] = 1
+	    additional_att.append(att)
+	    #print att.name.replace("rdk.FP_","")
+
+    newdomain = orange.Domain(ex.domain.attributes + additional_att, ex.domain.classVar)
+    new_ex = orange.Example(newdomain, ex) 
+    #print newdomain
+
+    # calc fp for ex and add relevant FP atts to ex
+    mol = str(ex[smilesName].value)
+    try:
+        chemMol = rdk.Chem.MolFromSmiles(mol,True)
+        if not chemMol:
+            chemMol = rdk.Chem.MolFromSmiles(mol,False)
+        fingerPrint = rdk.AllChem.GetMorganFingerprint(chemMol,radius)
+        resDict = fingerPrint.GetNonzeroElements()
+
+        for key in resDict.iterkeys():
+#	    print key
+	    if (str(key) in IDs):
+		#print "Found: ",
+		#print key
+		name = "rdk.FP_" + str(key)
+		new_ex[name] = resDict[key]
+
+# fill up the missing values with 0.0 (non-occurence of fragment)
+	for a in additional_att:
+	    if new_ex[a.name] == "?":
+		new_ex[a.name] = 0.0
+#	for i in range(len(newdomain.attributes)):
+#	for a in newdomain.attributes:
+#	    print a.var_type
+#	    if (str(a.var_type) == "String"):
+#	        continue
+	    #elif a.isSpecial() and a.varType == orange.VarTypes.Continuous:
+#		print a.name
+#	        new_ex[i] = 0.0
+    except:
+        #continue
+	print "Error",
+        print sys.exc_info()[0]
+	print sys.exc_info()[1]
+
+    return new_ex
+
  
 def getRdkDescResult(data,descList, radius = 1):
     """ Calculates the descriptors for the descList using RDK
