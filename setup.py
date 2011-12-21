@@ -84,6 +84,7 @@ class Installer:
         self.rdkitDir = None
         self.cdkDir = None
         self.ftmDir = None
+	self.structClustDir = None
         self.plearnDir = None
         self.R8Dir = None
         self.ctoolsDir = None
@@ -164,6 +165,9 @@ class Installer:
         
         # Setup the correct environment.
         self.setEnv()
+
+	# Compile structClust
+	self.compileStructClust()
 
         # Compile ftm
         self.compileFTM()
@@ -259,6 +263,7 @@ class Installer:
         self.rdkitDir = os.path.join(self.buildDir,"orangeDependencies/src/rdkit")
         self.cdkDir = os.path.join(self.buildDir,"orangeDependencies/src/cdk")
         self.ftmDir = os.path.join(self.buildDir,"orangeDependencies/src/ftm")
+	self.structClustDir = os.path.join(self.buildDir,"orangeDependencies/src/structuralClustering")
         self.plearnDir = os.path.join(self.buildDir,"orangeDependencies/src/plearn")
         self.ctoolsDir = os.path.join(self.buildDir,"orangeDependencies/src/Ctools")
         self.R8Dir = os.path.join(self.buildDir,"orangeDependencies/src/R8/Src")
@@ -471,6 +476,22 @@ class Installer:
         self.__prependEnvVar("JPYPE_JVM" , libjvm)
         self.__prependEnvVar("CLASSPATH" , CDKJar)
            
+
+    def compileStructClust(self):
+        if ("structClust" not in self.dependencies):
+            print "Not using the local structClust"
+            return
+        structClustinstallDir = os.path.join(self.orangeDependenciesDir,"structuralClustering")  
+        if self.dependencies["structClust"]:   #compile and install
+                # The source Dir will have to be available at running time
+                print "Copying structClust dir to orangeDependencies"
+                #stat, out = commands.getstatusoutput("rm -rf " + ftminstallDir)
+                stat, out = commands.getstatusoutput("cp -R " + self.ftmDir+ " " + ftminstallDir)
+        else:
+                print "Not reinstalled"
+
+
+
     def compileFTM(self):
         if ("ftm" not in self.dependencies):
             print "Not using the local ftm"
