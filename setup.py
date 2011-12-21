@@ -320,7 +320,7 @@ class Installer:
         try:
             ##scPA    Changed the source and destination of these files
             sumStatus += os.system("mkdir -p %s/azorange/trainingMethods" % self.installDir)
-            #Not included in the sumStatus because this command will generate a warning because being sipping directories.
+            #Not included in the sumStatus because this command will generate a warning because being skipping directories.
             os.system("cp -f ../azorange/trainingMethods/* %s/azorange/trainingMethods/" % self.installDir)
             #Not being used... it is still empty
             #sumStatus += os.system("cp -f ../azorange/trainingMethods/bin/* %s/azorange/trainingMethods/bin/" % self.installDir)
@@ -335,9 +335,8 @@ class Installer:
 
             if self.openInstall:
                 sumStatus += os.system("cp -Rf ../COPYING* %s/." % self.installDir)
-
-            if not self.openInstall:
-                sumStatus += os.system("cp -f ../azorange/*.txt %s/azorange/." % self.installDir)
+            else:
+                sumStatus += os.system("cp -Rf  ../azorange/etc %s/azorange/." % self.installDir)
                 sumStatus += os.system("cp -Rf  ../exampleScripts %s/." % self.installDir)
             #  Added the azorange to pythonpath in order to maintain the use of modules
             #  inside it accessible by the same way
@@ -1109,9 +1108,9 @@ class Installer:
                     self.detailsLogFile = options.detailslogfile
                     self.envFile = options.envfile
                     self.modulesToLoad = eval(options.modulestoload)
-                    self.openInstall = options.openinstall
+                    self.openInstall = eval(options.openinstall)
                     self.logFile = options.logfile
-                    self.verbosedLogging = options.verbose
+                    self.verbosedLogging = eval(options.verbose)
                     self.__initialize()
                     self.__build() 
                 else:
