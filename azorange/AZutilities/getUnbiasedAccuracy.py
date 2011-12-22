@@ -13,6 +13,7 @@ import statc
 from AZutilities import getStructuralDesc
 from AZutilities import structuralClustering
 from AZutilities import SimBoostedQSAR
+from AZutilities import getCinfonyDesc
 import sys
 
 
@@ -340,6 +341,7 @@ class UnbiasedAccuracyGetter():
                 orig_len = len(trainData.domain.attributes)
 		refs = None
 		methods = ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps']
+		train_domain = None
                 # add structural descriptors to the training data (TG) 
                 if (algorithm):
 			for i in range(len(algorithm)):
@@ -360,26 +362,47 @@ class UnbiasedAccuracyGetter():
 						trainData = dataUtilities.attributeDeselectionData(trainData_sim, atts)
 					else: 
 						trainData = dataUtilities.attributeDeselectionData(trainData_sim, [])
+
+				elif (algorithm[i] == "ECFP"):
+					self.__log("Algorithm " +str(i) + ": " + str(algorithm[i]))
+					trainData_ecfp = getCinfonyDesc.getCinfonyDescResults(trainData, ["rdk.FingerPrints"])
+					train_domain = trainData_ecfp.domain
+					if (i == (len(algorithm)-1)):
+						trainData = dataUtilities.attributeDeselectionData(trainData_ecfp, atts)
+					else: 
+						trainData = dataUtilities.attributeDeselectionData(trainData_ecfp, [])
+
 				else:
-					self.__log(algorithm[i])
+					self.__log("Algorithm " +str(i) + ": " + str(algorithm[i]))
 			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm[i], params['minsup'])
 					if (i == (len(algorithm)-1)):
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
 					else:
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
 
-               # trainData.save("/home/girschic/proj/AZ/ProjDev/631TEST.tab")
+                trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
                 testData = self.data.select(DataIdxs[foldN])
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
 			for i in range(len(algorithm)):
 				if (algorithm[i] == "structClust"):
-					self.__log("test: " + str(algorithm[i]))
+					self.__log(str(algorithm[i]))
 					testData_sim = SimBoostedQSAR.getSimDescriptors(refs, testData, methods)
 					if (i == (len(algorithm)-1)):
 						testData = dataUtilities.attributeDeselectionData(testData_sim, atts)
 					else:
 						testData = dataUtilities.attributeDeselectionData(testData_sim, [])
+				elif (algorithm[i] == "ECFP"):
+					self.__log(str(algorithm[i]))
+					testData_ecfp = orange.ExampleTable(train_domain)
+					for d in testData:
+						tmp = getCinfonyDesc.getRdkFPforTestInstance(train_domain, d)
+						testData_ecfp.append(tmp)
+					if (i == (len(algorithm)-1)):
+						testData = dataUtilities.attributeDeselectionData(testData_ecfp, atts)
+					else:
+						testData = dataUtilities.attributeDeselectionData(testData_ecfp, [])
+
 				else:
 					cut_off = orig_len - len(atts)
 		                	smarts = trainData.domain.attributes[cut_off:]
@@ -390,7 +413,7 @@ class UnbiasedAccuracyGetter():
 					else:
 						testData = dataUtilities.attributeDeselectionData(testData_structDesc, [])
 	
-                
+                testData.save("/home/girschic/proj/AZ/ProjDev/test.tab")
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
                 #Test if trainsets inside optimizer will respect dataSize criterias.

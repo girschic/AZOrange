@@ -174,9 +174,6 @@ def getRdkFPforTestInstance(domain,ex, radius = 1):
     if "rdk" not in toolkitsEnabled:
 	return None
 
-    # this should be changed!
-    smilesName = domain[0]
-
     # read relevant FP attributes from the domain
     IDs = {}
     additional_att = []
@@ -184,26 +181,27 @@ def getRdkFPforTestInstance(domain,ex, radius = 1):
 	if (att.name.startswith("rdk.FP_")):
 	    IDs[str(att.name.replace("rdk.FP_",""))] = 1
 	    additional_att.append(att)
-	    #print att.name.replace("rdk.FP_","")
 
     newdomain = orange.Domain(ex.domain.attributes + additional_att, ex.domain.classVar)
-    new_ex = orange.Example(newdomain, ex) 
-    #print newdomain
+    print ex
+    new_ex = orange.Example(newdomain)
+    for a in ex.domain.attributes:
+	new_ex[a.name] = ex[a.name]	
+    new_ex.setclass(ex.getclass())
+    print new_ex
+    print new_ex.domain.attributes[0].name
 
     # calc fp for ex and add relevant FP atts to ex
-    mol = str(ex[smilesName].value)
+    # this should be changed!  something like smilesName...
+    mol = str(new_ex[new_ex.domain.attributes[0].name].value)
     try:
         chemMol = rdk.Chem.MolFromSmiles(mol,True)
         if not chemMol:
             chemMol = rdk.Chem.MolFromSmiles(mol,False)
         fingerPrint = rdk.AllChem.GetMorganFingerprint(chemMol,radius)
         resDict = fingerPrint.GetNonzeroElements()
-
         for key in resDict.iterkeys():
-#	    print key
 	    if (str(key) in IDs):
-		#print "Found: ",
-		#print key
 		name = "rdk.FP_" + str(key)
 		new_ex[name] = resDict[key]
 
@@ -211,14 +209,7 @@ def getRdkFPforTestInstance(domain,ex, radius = 1):
 	for a in additional_att:
 	    if new_ex[a.name] == "?":
 		new_ex[a.name] = 0.0
-#	for i in range(len(newdomain.attributes)):
-#	for a in newdomain.attributes:
-#	    print a.var_type
-#	    if (str(a.var_type) == "String"):
-#	        continue
-	    #elif a.isSpecial() and a.varType == orange.VarTypes.Continuous:
-#		print a.name
-#	        new_ex[i] = 0.0
+
     except:
         #continue
 	print "Error",
