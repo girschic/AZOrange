@@ -35,35 +35,49 @@ def getStructuralClusters(data, threshold, minClusterSize, minClusterSaveSize = 
 	    returns a list (of clusters) 
 		of lists (which contain the smiles string of the cluster members)   
 	"""
-	sdf_temp = getStructuralDesc.makeTempSDF(data, smilesAsName=1)
-	# create tempdir for usage as 6) outputpath
-	temp_dir = tempfile.mkdtemp(prefix="AZorangeTMP_")
-	
 	clusters = []
+	isSuccess = False
+	tries = 0
 
-	# call clustering routine
-	# Example command line call; gspan files are available in the same folder as the jar executable
-	#java -jar structuralClustering.jar /home/girschic/proj/AZ/SAR/631.sdf 0.5 3 0 5 /home/girschic/proj/test/ . 2 20
-	jarpath = os.path.join(AZOC.STRUCTCLUSTDIR,'structuralClustering.jar')
-	opt = '-jar ' + jarpath + ' ' + sdf_temp.name + ' ' + str(threshold) + ' ' + str(minMolSize) + ' ' + str(minClusterSaveSize) + ' ' + str(minClusterSize) + ' ' + temp_dir + '/ ' + str(AZOC.STRUCTCLUSTDIR) + ' ' + str(numThreads) + ' ' + str(timeout)
+	while (not isSuccess and tries < 10):
+		tries += 1
+
+		sdf_temp = getStructuralDesc.makeTempSDF(data, smilesAsName=1)
+		# create tempdir for usage as 6) outputpath
+		temp_dir = tempfile.mkdtemp(prefix="AZorangeTMP_")
+
+		# call clustering routine
+		# Example command line call; gspan files are available in the same folder as the jar executable
+		#java -jar structuralClustering.jar /home/girschic/proj/AZ/SAR/631.sdf 0.5 3 0 5 /home/girschic/proj/test/ . 2 20
+		jarpath = os.path.join(AZOC.STRUCTCLUSTDIR,'structuralClustering.jar')
+		opt = '-jar ' + jarpath + ' ' + sdf_temp.name + ' ' + str(threshold) + ' ' + str(minMolSize) + ' ' + str(minClusterSaveSize) + ' ' + str(minClusterSize) + ' ' + temp_dir + '/ ' + str(AZOC.STRUCTCLUSTDIR) + ' ' + str(numThreads) + ' ' + str(timeout)
 	
-	cmd = 'java ' + opt
-	p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
-	stdout = p.communicate()
+		cmd = 'java ' + opt
+		p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
+		stdout = p.communicate()
 		
-	# parse output 
-	outfile = os.path.join(temp_dir,'output_clusters.txt')
-	output = open(outfile, 'r')
+		# parse output 
+		outfile = os.path.join(temp_dir,'output_clusters.txt')
+		try:
+			if os.path.isfile(outfile):
+				output = open(outfile, 'r')
+				# 1,CCC(C)NC(=O)CSC1=NC2=C(C=CC(=C2)OCC)C=C1C#N	COC1=CC2=C(C=C1)N=C(C(=C2)C#N)SCC(=O)NC3=CC=C(C=C3)S(=O)(=O)N4CCCC4	CCC1=C(N=C2C=C3C(=CC2=C1)OCO3)SCC(=O)NC4=NOC(=C4)C	
+				for line in output:
+					tmp = line.strip()		
+					split = tmp.partition(',')
+					smilesList = split[2].split('\t')
+					clusters.append(smilesList)
+			else
+				print str(outfile) + " does not exist!"
+				continue
+		
+		except IOError as (errno, strerror):
+			print "I/O error({0}): {1}".format(errno, strerror) 					
+			continue
 
-	# 1,CCC(C)NC(=O)CSC1=NC2=C(C=CC(=C2)OCC)C=C1C#N	COC1=CC2=C(C=C1)N=C(C(=C2)C#N)SCC(=O)NC3=CC=C(C=C3)S(=O)(=O)N4CCCC4	CCC1=C(N=C2C=C3C(=CC2=C1)OCO3)SCC(=O)NC4=NOC(=C4)C	
-	for line in output:
-		tmp = line.strip()		
-		split = tmp.partition(',')
-		smilesList = split[2].split('\t')
-		clusters.append(smilesList)
-
-	shutil.rmtree(temp_dir)
-	sdf_temp.close()
+		shutil.rmtree(temp_dir)
+		sdf_temp.close()
+		isSuccess = True
 
 	return clusters
 
