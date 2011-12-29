@@ -67,7 +67,7 @@ def getStructuralClusters(data, threshold, minClusterSize, minClusterSaveSize = 
 					split = tmp.partition(',')
 					smilesList = split[2].split('\t')
 					clusters.append(smilesList)
-			else
+			else:
 				print str(outfile) + " does not exist!"
 				continue
 		
