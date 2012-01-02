@@ -380,7 +380,7 @@ class UnbiasedAccuracyGetter():
 					else:
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
 
-                trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
+                #trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
                 testData = self.data.select(DataIdxs[foldN])
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
@@ -413,7 +413,7 @@ class UnbiasedAccuracyGetter():
 					else:
 						testData = dataUtilities.attributeDeselectionData(testData_structDesc, [])
 	
-                testData.save("/home/girschic/proj/AZ/ProjDev/test.tab")
+               # testData.save("/home/girschic/proj/AZ/ProjDev/test.tab")
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
                 #Test if trainsets inside optimizer will respect dataSize criterias.
@@ -615,7 +615,7 @@ class UnbiasedAccuracyGetter():
             return None
         
         if (algorithm):
-            self.__log(" Additional structural features to be calculated inside of cross-validation")
+            self.__log(" Additional features to be calculated inside of cross-validation")
             self.__log(" Algorithm for structural features: "+str(algorithm))
             self.__log(" Minimum support parameter: "+str(minsup))
             
