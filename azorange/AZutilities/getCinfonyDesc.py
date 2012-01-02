@@ -183,13 +183,10 @@ def getRdkFPforTestInstance(domain,ex, radius = 1):
 	    additional_att.append(att)
 
     newdomain = orange.Domain(ex.domain.attributes + additional_att, ex.domain.classVar)
-    print ex
     new_ex = orange.Example(newdomain)
     for a in ex.domain.attributes:
 	new_ex[a.name] = ex[a.name]	
     new_ex.setclass(ex.getclass())
-    print new_ex
-    print new_ex.domain.attributes[0].name
 
     # calc fp for ex and add relevant FP atts to ex
     # this should be changed!  something like smilesName...

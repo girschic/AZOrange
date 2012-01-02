@@ -394,13 +394,17 @@ class UnbiasedAccuracyGetter():
 						testData = dataUtilities.attributeDeselectionData(testData_sim, [])
 				elif (algorithm[i] == "ECFP"):
 					self.__log(str(algorithm[i]))
-					testData_ecfp = orange.ExampleTable(train_domain)
+					#testData_ecfp = orange.ExampleTable(train_domain)
+					tmp_dat = []
 					for d in testData:
 						tmp = getCinfonyDesc.getRdkFPforTestInstance(train_domain, d)
-						testData_ecfp.append(tmp)
+						tmp_dat.append(tmp)
+					testData_ecfp = orange.ExampleTable(tmp_dat[0].domain, tmp_dat)
 					if (i == (len(algorithm)-1)):
+#						print "removing atts"
 						testData = dataUtilities.attributeDeselectionData(testData_ecfp, atts)
 					else:
+#						print "removing no atts"
 						testData = dataUtilities.attributeDeselectionData(testData_ecfp, [])
 
 				else:
@@ -413,7 +417,7 @@ class UnbiasedAccuracyGetter():
 					else:
 						testData = dataUtilities.attributeDeselectionData(testData_structDesc, [])
 	
-               # testData.save("/home/girschic/proj/AZ/ProjDev/test.tab")
+#                testData.save("/home/girschic/proj/AZ/ProjDev/test.tab")
                 nTrainEx[ml].append(len(trainData))
                 nTestEx[ml].append(len(testData))
                 #Test if trainsets inside optimizer will respect dataSize criterias.
