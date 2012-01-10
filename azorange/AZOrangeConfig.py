@@ -16,7 +16,8 @@ CVT_SYM = {"\xc2":"", chr(181):"u"}
 # General environement
 AZORANGEHOME = os.environ["AZORANGEHOME"]
 SCRATCHDIR = "/tmp"
-NFS_SCRATCHDIR = os.path.join(os.environ["HOME"],"AZO_NFS_scratchDir")
+#NFS_SCRATCHDIR = os.path.join(os.environ["HOME"],"AZO_NFS_scratchDir")
+NFS_SCRATCHDIR = os.path.join(SCRATCHDIR,"AZO_NFS_scratchDir")
 
 # environment for structural clustering
 STRUCTCLUSTDIR = os.path.join(os.environ["AZORANGEHOME"], "orangeDependencies/structuralClustering")
