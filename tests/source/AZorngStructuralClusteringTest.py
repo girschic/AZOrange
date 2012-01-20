@@ -14,7 +14,7 @@ class StructuralClusteringTest(unittest.TestCase):
 
     def test_clustering(self):
         """ Test if clustering is running properly """
-	refs = structuralClustering.getReferenceStructures(data,threshold=0.5,minClusterSize=5)
+	refs = structuralClustering.getReferenceStructures(self.data,threshold=0.5,minClusterSize=5)
         expected_length = 4
         self.assertEqual(expected_length, len(refs))
                 
@@ -24,11 +24,14 @@ class StructuralClusteringTest(unittest.TestCase):
         from subprocess import Popen, PIPE
         from cinfony import rdk
 				
-        sdf_mols = dataUtilities.makeTempFilesFTM(self.data)
+        sdf_mols = dataUtilities.makeTempSDF(self.data)
         cmd = 'cat ' + sdf_mols.name + ' | grep \'\$\$\$\$\' | wc'
         p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
         stdout = p.communicate()
-        self.assertEqual(stdout[0].strip(),"100      100      500")
+	counts = stdout[0].strip().split()
+	self.assertEqual(counts[0].strip(),'100')
+	self.assertEqual(counts[1].strip(),'100')
+	self.assertEqual(counts[2].strip(),'500')
 	
 		
 if __name__ == "__main__":
