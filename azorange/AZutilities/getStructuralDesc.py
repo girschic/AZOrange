@@ -5,408 +5,223 @@
 	to come: gSpan', BBRC and LAST-PM 
 """
 
-import os
-import sys
-import time
+import logging
+import os,string,sys
+from AZutilities import dataUtilities 
 import random
-import string
-
-import subprocess
-from subprocess import Popen, PIPE
-import tempfile
+import bbrc
 import orange
-import orngTest, orngStat
-from cinfony import rdk
-import AZOrangeConfig as AZOC
-from AZutilities import dataUtilities
 
-#FTM = os.path.join(os.environ["HOME"], "OpenTox", "serverFiles", "FTM", "ftm")
-#FTM = os.path.join("/home/kgvf414/projects/SimBoostedQSAR/FTM", "ftm")
-FTM = os.path.join("", "ftm")
+logging.basicConfig()
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
-def getStructuralDescResult(data,algo,minsup):
+class BBRC(object):
+    def __init__(self, verbose = 0):
+        self.iniDir = os.getcwd()
+        self.runDir = "/tmp/BBRC_"+str(random.random())[2:]
+        self.SMI = []
+        self.CLASS = []
+        self.ID = []
+        self.verbose = verbose
+        self.minsup = 6               # -f   default 2
+        self.Backbone = True          # -b   default  True
+        self.ChisqActive = True       #      default True
+        self.DynamicUpperBound = True #      default True
+        self.ChisqSig = None          # default is -1.0 but cannot assign -1.0 !
+        # if the temporal dataSet is specifyed, p=0 f=1
+        self.data = None
+        self.active = "POS"  # Only available for Classification
+        # Constructor parameters:
+        #fminer_lazar
+        #fminer_smarts
+        #fminer_pvalues
+        #fminer_no_aromatic_wc
+        #fminer_silent
+        #fminer_nr_hits
+
+        #FMINER_LAZAR : Produce output in linfrag format which can be used as input to Lazar (e.g. export FMINER_LAZAR=1).
+        #FMINER_PVALUES : Produce p-values instead of chi-square values (e.g. export FMINER_PVALUES=1).
+        #FMINER_NO_AROMATIC_WC: Disallow aromatic wildcard bonds on aliphatic bonds, when aromatic perception was switched off (
+        #                       '-a') (e.g. export FMINER_NO_AROMATIC_WC=1).
+        #FMINER_SILENT : Redirect STDERR (debug output) of fminer to local file 'fminer_debug.txt'
+        #FMINER_NR_HITS : Display (in the occurrence lists) the number of times each fragment occurs in a molecule.
+
+        try:
+            #                          lazar    smarts    pvalue    no_aromatic_wc    silent   
+            self.MyFminer = bbrc.Bbrc( True,    True,     False,    False,            not bool(self.verbose),    True)
+        except:
+            #FallBack to default constructor. Env vars must be already set: FMINER_LAZAR 1; FMINER_SMARTS 1; FMINER_PVALUES 0
+            self.MyFminer = bbrc.Bbrc()
+
+    def __setBBRCOptions(self):
+        if not self.MyFminer:
+            print "Missing initialization"
+            return
+
+        self.MyFminer.SetDynamicUpperBound(self.DynamicUpperBound)
+        if self.ChisqSig is not None:
+            self.MyFminer.SetChisqSig(self.ChisqSig)
+        self.MyFminer.SetBackbone(self.Backbone)
+        self.MyFminer.SetChisqActive(self.ChisqActive)
+        self.MyFminer.SetConsoleOut(0)
+        self.MyFminer.SetAromatic(1)
+        self.MyFminer.SetMinfreq(self.minsup)   # same as -f
+
+
+    def __createBBRCInputs(self):
+        if not self.data:
+            print "ERROR: Data must be loaded first!"
+            return None
+        if self.active not in self.data.domain.classVar.values:
+            print "ERROR: '"+str(self.active)+"' is not part of the class values!"
+            return None
+
+        smilesName = dataUtilities.getSMILESAttr(self.data)
+        for idx,ex in enumerate(self.data):
+            if ex.getclass().value == self.active:
+                activity = 1 
+            else:
+                activity = 0
+            ID = idx+1 # ID is the number of coumpound in self.data which is the number os the example (1 based!)
+            self.MyFminer.AddCompound(str(ex[smilesName].value), ID)
+            self.MyFminer.AddActivity(activity, ID)
+
+
+    def __runBBRC(self):
+        if self.verbose: print "Running BBRC for "+ str(repr(self.MyFminer.GetNoCompounds())) +" compounds..."
+        # gather results for every root node in vector instead of immediate output
+        lines = []
+        for j in range(0, self.MyFminer.GetNoRootNodes()-1):
+            result = self.MyFminer.MineRoot(j)
+            for i in range(0, result.size()-1):
+                 lines.append( result[i].strip() )
+                 #print result[i]  # DEBUG
+        return lines
+
+    def __parseBBRCoutput(self,res, ctrlDescSet):
+        #Parse the results to an orange tab file
+        if self.verbose: print "Parsing BBRC results. Please wait..."
+        nCompounds = len(self.data)
+        allDesc = []
+        allIDs = []
+        for line in res:
+            allDesc.append(line.split("\t")[0].strip())
+            allIDs.append([ int(x) for x in line.split("\t")[1][1:-1].strip().split(" ")])
+
+        # Find the Descriptors that are required to be at the output file, but they are not among allDesc
+        missingDesc = []
+        desAttr = []
+        selDesc = [x for x in allDesc]
+        if ctrlDescSet:# NOT AVAILABLE TODO
+            if not os.path.isfile(ctrlDescSet):
+                print "Unable to find Control Descriptors Set: ",ctrlDescSet
+            else:
+                f = open(ctrlDescSet)
+                trainDesc = f.readline().strip().split("\t")[2:-1]
+                f.close()
+                missingDesc = [x for x in trainDesc if x not in allDesc]
+                #Attributes to be desellected
+                desAttr = [x for x in allDesc if x not in trainDesc]
+                selDesc = [x for x in allDesc if x not in desAttr]     
+
+        #TODO  Add attrs and values to the NEWdata!
+        newDomainAttrs = [attr for attr in self.data.domain.attributes] + \
+                         [orange.FloatVariable(name) for name in selDesc] + \
+                         [self.data.domain.classVar]
+        newDomain = orange.Domain(newDomainAttrs)
+        if self.verbose: 
+            print "Original domain lenght: ",len(self.data.domain)
+            print "New domain lenght     : ",len(newDomain)
+            print "\n0%"+" "*98+"100%"
+            print "|"+"-"*100+"|"
+            sys.stdout.write("|")
+            sys.stdout.flush()
+
+        newData = dataUtilities.DataTable(newDomain) 
+        for idx,ex in enumerate(self.data):
+            newEx = orange.Example(newDomain,ex)
+            if self.verbose: 
+                if nCompounds < 100:
+                    sys.stdout.write("=")
+                elif idx%(int(nCompounds/100)) == 0:
+                    sys.stdout.write("=")
+                sys.stdout.flush()
+
+            ID = idx+1   # ID is the number of coumpound in self.data which is the number os the example (1 based!)
+            for dIdx,d in enumerate(selDesc):
+                if ID in allIDs[dIdx]:
+                    newEx[d] = 1.0
+                else:
+                    newEx[d] = 0.0
+            newData.append(newEx)
+        if self.verbose: 
+            if nCompounds < 100:
+                sys.stdout.write("="*(100-nCompounds+1))
+            print ""
+        return newData
+
+    def getDesc(self, data, ctrlDescSet = None):
+        if ctrlDescSet and os.path.isfile(ctrlDescSet):  # Not implemented: TODO
+            # if the temporal dataSet is specifyed, p=0 minsup=1
+            self.ChisqSig = 0.0
+            self.minsup = 1
+            if self.verbose: 
+                print "Because a controll dataset was specifyed, the following parameters were changed:"
+                print "  p was set to 0.0"
+                print "  f was set to 1"
+        self.data = data
+        self.__setBBRCOptions()
+        self.__createBBRCInputs()
+        res = self.__runBBRC() 
+        if res:
+            return self.__parseBBRCoutput(res,ctrlDescSet)
+        else:
+            print "No output from BBRC!"
+        
+
+#TopLevel interface
+def getStructuralDescResult(dataIN, algo, minSupPar, active = None, verbose = 0):
     """ delegate to different algorithm methods 
     """
-    if (algo == "FTM"):
-        return getFTMDescResult(data,minsup)
+    if active is not None:
+        activeLabel = active
+    else:
+        activeLabel = dataIN.domain.classVar.values[0]   # For BBRC the active class can be any since it will only use the "count"
+
+    if (algo == "FTM"):              # Using BBRC without class correlation
+        BBRCCalc = BBRC(verbose = verbose)
+        BBRCCalc.minsup = minSupPar
+        BBRCCalc.active = activeLabel
+        #Disanling class correlation
+        BBRCCalc.DynamicUpperBound = False 
+        BBRCCalc.ChisqSig = 0.0
+        BBRCCalc.Backbone = False
+
+        return BBRCCalc.getDesc(dataIN)
     elif (algo == "BBRC"):
-        return getFMinerDescResult(data,minsup,algo)
+        BBRCCalc = BBRC(verbose = verbose)
+        BBRCCalc.minsup = minSupPar
+        BBRCCalc.active = activeLabel
+        return BBRCCalc.getDesc(dataIN)
     elif (algo == "LAST-PM"):
         return getFMinerDescResult(data,minsup,algo)
-
-
-def getFMinerDescResult(data,minSup,algo):
-	""" Calculates the structural Fminer descriptors for the data using Fminer with the BBRC or LAST-PM plugin (python bindings)
-		It expects an absolute minimum frequency parameter
-		and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
-		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
-	"""
-	smarts = None
-	if (algo == "BBRC"):
-		smarts = getBBRCsmartsList(data,minSup)
-	elif (algo == "LAST-PM"):
-        	smarts = getLASTPMsmartsList(data,minSup)
-
-	newdomain = orange.Domain(data.domain.attributes + smarts, data.domain.classVar)
-        newdata = orange.ExampleTable(newdomain, data)
-
-	smilesName = getSMILESAttr(data)
-        if not smilesName: return None
-			
-   	count = 0
-	for a in newdata:
-        	smile = str(a[smilesName].value)
-		m = rdk.Chem.MolFromSmiles(smile)
-	        if m is None:
-        		count += 1
-		        continue
-
-	        for b in range(len(smarts)):
-        		patt = rdk.Chem.MolFromSmarts(smarts[b].name)
-		        if m.HasSubstructMatch(patt):
-                		tmp = orange.Value(smarts[b],1.0)
-		        else:
-                		tmp = orange.Value(smarts[b],0.0)
-		        a[smarts[b]] = tmp
-
-	return newdata 
+    else:
+        print "Algorithm "+algo+" is unknown!"
 
 
 
 
+if __name__=="__main__":
+    #logging.basicConfig(level=logging.DEBUG)
+    log.setLevel(logging.DEBUG)
+    dataIN =  dataUtilities.DataTable("./testSMILES.tab")
+    algoPar = "BBRC"
+    minSupPar = 4 
+    outData = getStructuralDescResult(dataIN,algoPar,minSupPar, verbose = 1)
+    if not outData:
+        print "Could not get BBRC descriptors!"
+    else:
+        outData.save("./outBBRC.tab")
 
-def getLASTPMsmartsList(data,minSup):
-	""" Calculates the LAST-PM class-correlated structural features using Fminer with libbbrc python bindings
-	    returned is a list of SMARTS string that describe the features
-	    Helper function for getFMinerDescResult()
-	"""
-	import liblast
-
-	smilesName = getSMILESAttr(data)
-        if not smilesName: return None
-
-	Fminer = liblast.Last()
-	Fminer.SetConsoleOut(0)
-	Fminer.SetAromatic(1)
-	Fminer.SetMinfreq(minSup)
-
-	# add compounds     IMPORTANT! Do not change settings after adding compounds!
-        count = 1
-        for a in data:
-                smile = str(a[smilesName].value)
-                activity = float(a.getclass())
-                Fminer.AddCompound(smile, count)
-		Fminer.AddActivity(activity, count)
-                count += 1
-
-        features = []
-        # gather results for every root node in vector instead of immediate output
-        for j in range(0, Fminer.GetNoRootNodes()-1):
-                result = Fminer.MineRoot(j);
-                for i in range(0, result.size()-1):
-                        #print result[i]
-                        # YAML
-                        # - [ smarts,    p_chisq,    occ_list_class1,    occ_list_class2,    ... ]                       
-                        start_idx = result[i].find('"') + 1
-                        smarts = result[i][start_idx:result[i].rfind('"')]
-                        # add new attributes to list
-                        features.append(orange.FloatVariable(smarts, numberOfDecimals=1))
-                        #m = rdk.Chem.MolFromSmarts(smarts)
-	
-	return features
-    
-
-
-def getBBRCsmartsList(data,minSup):
-	""" Calculates the BBRC class-correlated structural features using Fminer with libbbrc python bindings
-	    returned is a list of SMARTS string that describe the features
-	    Helper function for getFMinerDescResult()
-	"""
-	import bbrc
-
-        smilesName = getSMILESAttr(data)
-        if not smilesName: return None
-
-        # Constructor for standard settings: 95% significance Bbrclevel, minimum frequency 2, type trees, dynamic upper bound, BBRC.
-        Fminer = bbrc.Bbrc()
-        #if (chisqSig):
-         #   Fminer.SetChisqSig(chisqSig)
-
-        # Pass 'true' here to disable usage of result vector and directly print each fragment to the console (saves memory).     
-        Fminer.SetConsoleOut(0)
-        # Pass 'true' here to enable aromatic rings and use Kekule notation. IMPORTANT! SET THIS BEFORE CALLING AddCompound()! Same as '-a'. 
-        Fminer.SetAromatic(1)
-        Fminer.SetMinfreq(minSup)
-
-        # add compounds     IMPORTANT! Do not change settings after adding compounds!
-        count = 1
-        for a in data:
-                smile = str(a[smilesName].value)
-                activity = float(a.getclass())
-                Fminer.AddCompound(smile, count)
-		Fminer.AddActivity(activity, count)
-                count += 1
-
-        features = []
-        # gather results for every root node in vector instead of immediate output
-        for j in range(0, Fminer.GetNoRootNodes()):
-                result = Fminer.MineRoot(j);
-                for i in range(0, result.size()):
-                        #print result[i]
-                        # YAML
-                        # - [ smarts,    p_chisq,    occ_list_class1,    occ_list_class2,    ... ]                       
-                        start_idx = result[i].find('"') + 1
-                        smarts = result[i][start_idx:result[i].rfind('"')]
-                        # add new attributes to list
-                        features.append(orange.FloatVariable(smarts, numberOfDecimals=1))
-                        #m = rdk.Chem.MolFromSmarts(smarts)
-	
-	return features
-
-
-
-def getFTMDescResult(data,minSup):
-	""" Calculates the structural FTM descriptors for the data using FTM
-		It expects a relative minimum frequency parameter and a data attribute containing smiles with a name defined in AZOrangeConfig.SMILESNAMES
-		It returns a dataset with the same smiles input variable, and as many variables as the descriptors returned by the toolkit
-	"""
-	sdf_mols = makeTempSDF(data, smilesAsName=1)
-	temp_occ = tempfile.NamedTemporaryFile()	
-	# start FTM subprocess
-	ftm(temp_occ.name, minSup, sdf_mols.name)
-	#ftm(temp_occ.name, minSup, 'testftm.sdf')
-	
-	# parse result file and create new data
-	occ_flag = 0
-	atts = []
-	occ_list = []
-	for line in temp_occ:
-
-		if occ_flag == 1:
-			line_split = line.split()
-			#
-			# line_split[0] is the "name" of the feature
-			# line_split[1] is the occurrence string for all instances separated by comma
-			#
-
-			# add new attributes to list
-			atts.append(orange.FloatVariable(line_split[0], numberOfDecimals=1))
-			#atts.append(orange.EnumVariable(line_split[0], values=['0','1']))
-									
-			occ = line_split[1].split(",")
-			occ_list.append(occ)
-					
-		if line.startswith('Occurrences:'):
-			occ_flag = 1
-	
-	newdomain = orange.Domain(data.domain.attributes + atts, data.domain.classVar)
-	newdata = orange.ExampleTable(newdomain, data)
-
-	count1 = 1
-	for j in range(len(newdata)):
-		instance = newdata[j]
-		count = 1	
-				
-		for k in range(len(occ_list)):
-			if str(occ_list[k][j]) == '1':
-				tmp = orange.Value(atts[k],1.0)
-				instance[atts[k]] = tmp
-			elif str(occ_list[k][j]) == '0':
-				tmp = orange.Value(atts[k],0.0)
-				instance[atts[k]] = tmp
-							
-			count += 1
-		
-	temp_occ.close()
-	sdf_mols.close()
-	#print "Number of atts: " + str(len(newdata.domain.attributes))
-	return newdata
-
-
-def makeTempSDF(data, smilesAsName=None):
-	"""	create temporary SFD file for usage with, e.g., FTM or other integrated algorithms
-		that need SDF input.
-		returns a file object that still has to be closed!
-	"""
-	
-	smilesName = getSMILESAttr(data)
-	if not smilesName: return None
-	
-	sdf_mols = tempfile.NamedTemporaryFile(suffix='.sdf') 
-    
-    # write structures in sdf format to this file
-	count = 0
-	w = rdk.Chem.SDWriter(sdf_mols.name)
-	#w = rdk.Chem.SDWriter('testftm.sdf')
-	count_mols = 0
-	for a in data:
-		smile = str(a[smilesName].value)
-		m = rdk.Chem.MolFromSmiles(smile)
-		if m is None: 
-			count += 1
-			#print "ALERT"
-			continue
-		if (smilesAsName):
-			# set smiles as molname (just to have any name)	
-			m.SetProp("_Name", smile)
-		w.write(m)
-
-		count_mols+=1
-	#print "Number of molecules that could not be read: ", count
-	#print "Number of molecules read: ", count_mols
-
-	return sdf_mols
-	
-
-def getSMARTSrecalcDesc(data,smarts):
-    """ Calculates structural descriptors for test and training data.
-		In other words, checks for the substructure occurrence (0/1) in the 
-		test or prediction molecules. Uses RDK.
-		Expects the test/prediction data and a list of SMARTS strings.
-		Returns the data including the new features. 
-    """
-    smilesName = getSMILESAttr(data)
-    if not smilesName: return None
-    		
-    atts = []
-    for attr in smarts:
-        atts.append(orange.FloatVariable(attr.name, numberOfDecimals=1))
-
-    newdomain = orange.Domain(data.domain.attributes + atts, data.domain.classVar)
-    newdata = orange.ExampleTable(newdomain, data)
-    	
-    count = 0
-    for a in newdata:
-        smile = str(a[smilesName].value)
-        m = rdk.Chem.MolFromSmiles(smile)
-        if m is None: 
-            count += 1
-            continue
-		
-        for b in range(len(smarts)):
-            patt = rdk.Chem.MolFromSmarts(smarts[b].name)
-            if m.HasSubstructMatch(patt):
-                tmp = orange.Value(atts[b],1.0)
-            else:
-                tmp = orange.Value(atts[b],0.0)
-            a[atts[b]] = tmp
-				
-    return newdata
-	
-	
-def getSMILESAttr(data):
-    # Check that the data contains a SMILES attribute
-    smilesName = None
-    for attr in [a.name for a in  data.domain] + [a.name for a in data.domain.getmetas().values()]:
-        if attr in AZOC.SMILESNAMES:
-            smilesName = attr
-    if not smilesName:
-        print "Warning: The data set does not contain any known smiles attribute!"
-        print "No Cinfony descriptors added!"
-        return None
-    else:       
-        return smilesName
-	
-	
-
-def cross_validation_plusFTM(data, learners, k, f, att_list):
-    """
-    Perform k-fold cross validation and add FTM features (minsup = f) in each fold 
-    The FTM features for each training fold are recalculated for the test fold (NO FTM run!)
-    att_list - is the
-    list of attributes that will be removed before learning 
-    For reference see also:
-    http://orange.biolab.si/doc/ofb/accuracy5.py
-    http://orange.biolab.si/doc/ofb/c_performance.htm
-    """
-    acc = [0.0]*len(learners)
-    roc = [0.0]*len(learners)
-    selection = orange.MakeRandomIndicesCV(data, folds=k)
-    for test_fold in range(k):
-        train_data = data.select(selection, test_fold, negate=1)
-#        print "len->train: ",
-#        print len(train_data)
-        # add ftm features 
-        train_data_ftm = getFTMDescResult(train_data, f)
-	minsupStr = str(f).replace(".","")
-        filename = data.name + "_ftm_" + minsupStr + "_" + str(test_fold) + ".tab"
-        #train_data.save(filename)
-        train_scaled = dataUtilities.attributeDeselectionData(train_data_ftm, att_list)
-        
-        # recalc and add ftm features to test fold
-        test_data = data.select(selection, test_fold)
-        smarts = train_data_ftm.domain.attributes[len(train_data.domain.attributes):]
-        print "# FTM features: ",
-        print len(smarts)
-        test_data_ftm = getSMARTSrecalcDesc(test_data,smarts)
-        test_scaled = dataUtilities.attributeDeselectionData(test_data_ftm, att_list)
-                
-        classifiers = []
-        for l in learners:
-            classifiers.append(l(train_scaled))
-        acc1 = accuracy(test_scaled, classifiers)
-        auroc1 = aroc(test_scaled, classifiers)
-        print "%d: %s" % (test_fold+1, acc1)
-        print "%d: %s" % (test_fold+1, auroc1)
-        for j in range(len(learners)):
-            acc[j] += acc1[j]
-            roc[j] += auroc1[j]
-    for j in range(len(learners)):
-        acc[j] = acc[j]/k
-        roc[j] = roc[j]/k
-    return acc, roc
-    
-
-def accuracy(test_data, classifiers):
-    """
-    Taken from: 
-    http://orange.biolab.si/doc/ofb/accuracy5.py
-    TBD---other measures---reusable stuff??
-    """
-    correct = [0.0]*len(classifiers)
-    for ex in test_data:
-        for i in range(len(classifiers)):
-            if classifiers[i](ex) == ex.getclass():
-                correct[i] += 1
-    for i in range(len(correct)):
-        correct[i] = correct[i] / len(test_data)
-    return correct	
-    
-    
-def aroc(data, classifiers):
-    """
-    Taken from: 
-    http://orange.biolab.si/doc/ofb/roc.py
-    """
-    ar = []
-    for c in classifiers:
-        p = []
-        for d in data:
-            p.append(c(d, orange.GetProbabilities)[0])
-        correct = 0.0; valid = 0.0
-        for i in range(len(data)-1):
-            for j in range(i+1,len(data)):
-                if data[i].getclass() <> data[j].getclass():
-                    valid += 1
-                    if p[i] == p[j]:
-                        correct += 0.5
-                    elif data[i].getclass() == 0:
-                        if p[i] > p[j]:
-                            correct += 1.0
-                    else:
-                        if p[j] > p[i]:
-                            correct += 1.0
-        ar.append(correct / valid)
-    return ar
-	
-def ftm(temp_occ, freq, mols):
-    """
-    Actual method that calls FTM on the command line
-    """
-    ftm_opt = ' -f ' + str(freq) + ' -o ' + temp_occ	+ ' ' + mols
-    cmd = FTM + ftm_opt
-    #print cmd
-    p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE)
-    stdout = p.communicate()
-    #	p = subprocess.call(ftm_call, shell=True)
