@@ -102,8 +102,8 @@ rdkit = http://rdkit.googlecode.com/files/RDKit_2011_03_2.tgz,2011.03
 cdk = http://switch.dl.sourceforge.net/project/cdk/cdk/1.2.7/cdk-1.2.7.jar,1.2.7
 ftm = http://wwwkramer.in.tum.de/projects/ftm.tar.gz,0.1
 fminer = https://github.com/amaunz/fminer2.git,0.0
-clustering = http://wwwkramer.in.tum.de/projects/structuralClustering.tar.gz,1.0
-
+;clustering = http://wwwkramer.in.tum.de/projects/structuralClustering.tar.gz,1.0
+clustering = http://wwwkramer.in.tum.de/projects/structuralClustering_1_1.tar.gz,1.1
 
 [FeedBack]
 ;For sending reports to multiple accounts, separate them by comma

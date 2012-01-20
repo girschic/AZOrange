@@ -493,6 +493,16 @@ class Installer:
 		checkStatus(stat, out, "Error copying the structural clustering")
 		stat, out = commands.getstatusoutput("rm -r " + self.structClustDir)
 		checkStatus(stat, out, "Error removing unpacked structural clustering dir")
+		# compile gSpan
+# gspanpp	g++ -o gspan3 -O2 gspan_all_BB.cpp -Iivy_mike/src/
+# gSpan		gcc -O2 min.c computeSymm.c gSpan.c biconn.c preprocessDB2.c -o gSpan
+		os.chdir(os.path.join(self.structClustinstallDir, "gSpan/gspanpp")
+		stat, out = commands.getstatusoutput("g++ -o gspan3 -O2 gspan_all_BB.cpp -Iivy_mike/src/")
+		checkStatus(stat, out, "Error compiling gspan3")
+	
+		os.chdir(os.path.join(self.structClustinstallDir, "gSpan/gSpan/FeatureVector_nodes")
+		stat, out = commands.getstatusoutput("gcc -O2 min.c computeSymm.c gSpan.c biconn.c preprocessDB2.c -o gSpan")
+		checkStatus(stat, out, "Error compiling gSpan")
         else:
                 print "Not reinstalled"
 
