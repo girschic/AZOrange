@@ -482,15 +482,17 @@ class Installer:
            
 
     def compileStructClust(self):
-        if ("structClust" not in self.dependencies):
-            print "Not using the local structClust"
+        if ("clustering" not in self.dependencies):
+            print "Not using the local structural clustering"
             return
         structClustinstallDir = os.path.join(self.orangeDependenciesDir,"structuralClustering")  
-        if self.dependencies["structClust"]:   #compile and install
+        if self.dependencies["clustering"]:   #compile and install
                 # The source Dir will have to be available at running time
-                print "Copying structClust dir to orangeDependencies"
-                #stat, out = commands.getstatusoutput("rm -rf " + ftminstallDir)
-                stat, out = commands.getstatusoutput("cp -R " + self.ftmDir+ " " + ftminstallDir)
+                print "Copying clustering dir to orangeDependencies"
+                stat, out = commands.getstatusoutput("cp -R " + self.structClustDir+ " " + structClustinstallDir)
+		checkStatus(stat, out, "Error copying the structural clustering")
+		stat, out = commands.getstatusoutput("rm -r " + self.structClustDir)
+		checkStatus(stat, out, "Error removing unpacked structural clustering dir")
         else:
                 print "Not reinstalled"
 
