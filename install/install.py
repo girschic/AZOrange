@@ -44,7 +44,7 @@ class Installer(object):
         #Sends the configuration used to the details only!
         self.printConfiguration(True)
         startInstallTime = time.time()
-    
+	self.addLog(self.configFile)    
         # Check for some important requirements
         self.addLog("*Requirements and System Info")
         st,out = commands.getstatusoutput('python -c "import distutils.sysconfig; print distutils.sysconfig.get_python_inc()"; uname -a; lsb_release -a')
@@ -611,14 +611,16 @@ application/xml=AZOrange.desktop;
 
     def checkoutStructClust(self):
         # Get the dependency Config
-        name = "structClust"
+        name = "clustering"
         if name not in self.dependencies:
+	    self.addLog("Name " + str(name) + " not in dependencies")
             URL = None
             REV = None
             USE_INSTALLED = True
         else:
             depCfg = self.dependencies[name].split(",")
             URL = depCfg[0]
+	    self.addLog(URL)
             if len(depCfg)<2 or depCfg[1] == "":
                 REV = "HEAD"
             else:

@@ -101,8 +101,8 @@ rdkit = http://rdkit.googlecode.com/files/RDKit_2011_03_2.tgz,2011.03
 ;rdkit = http://rdkit.googlecode.com/files/RDKit_Q42009_1.tar.gz,Q42009_2
 cdk = http://switch.dl.sourceforge.net/project/cdk/cdk/1.2.7/cdk-1.2.7.jar,1.2.7
 ftm = http://wwwkramer.in.tum.de/projects/ftm.tar.gz,0.1
-structClust = http://wwwkramer.in.tum.de/projects/structuralClustering.tar.gz,1.0
 fminer = https://github.com/amaunz/fminer2.git,0.0
+clustering = http://wwwkramer.in.tum.de/projects/structuralClustering.tar.gz,1.0
 
 
 [FeedBack]
