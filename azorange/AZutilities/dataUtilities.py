@@ -6,6 +6,8 @@ import os
 import time
 import commands
 import random
+import tempfile
+from cinfony import rdk
 from opencv import ml
 from opencv import cv
 import AZOrangeConfig as AZOC
@@ -38,6 +40,40 @@ def getSMILESAttr(data):
             smilesName = attr
     return smilesName
 
+
+def makeTempSDF(data, smilesAsName=None):
+	"""	create temporary SFD file for usage with, e.g., structural clustering or other integrated algorithms
+		that need SDF input.
+		returns a file object that still has to be closed!
+	"""
+	
+	smilesName = getSMILESAttr(data)
+	if not smilesName: return None
+	
+	sdf_mols = tempfile.NamedTemporaryFile(suffix='.sdf') 
+    
+    # write structures in sdf format to this file
+	count = 0
+	w = rdk.Chem.SDWriter(sdf_mols.name)
+	#w = rdk.Chem.SDWriter('testftm.sdf')
+	count_mols = 0
+	for a in data:
+		smile = str(a[smilesName].value)
+		m = rdk.Chem.MolFromSmiles(smile)
+		if m is None: 
+			count += 1
+			#print "ALERT"
+			continue
+		if (smilesAsName):
+			# set smiles as molname (just to have any name)	
+			m.SetProp("_Name", smile)
+		w.write(m)
+
+		count_mols+=1
+	#print "Number of molecules that could not be read: ", count
+	#print "Number of molecules read: ", count_mols
+
+	return sdf_mols
 
 def SeedDataSampler(data, nFolds):
     """ Samples the data for being used in Folds: Pseudo-Random Selected based on a Seed

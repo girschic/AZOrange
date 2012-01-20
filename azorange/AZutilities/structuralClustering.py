@@ -27,7 +27,7 @@ import random
 import subprocess
 from subprocess import Popen, PIPE
 import tempfile
-from AZutilities import getStructuralDesc
+from AZutilities import dataUtilities
 import AZOrangeConfig as AZOC
 
 def getStructuralClusters(data, threshold, minClusterSize, minClusterSaveSize = 0, minMolSize = 3, minSaveSDFsize = 0, numThreads=1, timeout=20):
@@ -42,7 +42,7 @@ def getStructuralClusters(data, threshold, minClusterSize, minClusterSaveSize = 
 	while (not isSuccess and tries < 10):
 		tries += 1
 
-		sdf_temp = getStructuralDesc.makeTempSDF(data, smilesAsName=1)
+		sdf_temp = dataUtilities.makeTempSDF(data, smilesAsName=1)
 		# create tempdir for usage as 6) outputpath
 		temp_dir = tempfile.mkdtemp(prefix="AZorangeTMP_")
 
