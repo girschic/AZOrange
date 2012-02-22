@@ -259,14 +259,17 @@ def getClassificationAccuracy(testData, classifier):
 	self.__log("    bad test data")
         return 0.0
     exp_pred = []
+    #self.__log("	in getClassificationAccuracy")
+    print "IN IN IN"
     for ex in testData:
+	print str(classifier(ex)) + "->" + str(ex.getclass())
         exp_pred.append( (str(ex.getclass()), str(classifier(ex))) )
     return calcClassificationAccuracy(exp_pred)
 
 def calcClassificationAccuracy(exp_pred_Val):
     correct = 0.0
     for val in exp_pred_Val:
-        print str(classifier(ex)) + "->" + str(ex.getclass())
+#        print str(classifier(ex)) + "->" + str(ex.getclass())
         if val[0] == val[1]:
             correct = correct + 1.0
     ClassificationAccuracy = correct/len(exp_pred_Val)
