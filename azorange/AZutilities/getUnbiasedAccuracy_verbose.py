@@ -387,10 +387,10 @@ class UnbiasedAccuracyGetter():
 						self.__log("HEYHO")
 					else:
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
-		trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
+#		trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
 		if (yscramble):
 			trainData = dataUtilities.yscrambleData(trainData)
-                trainData.save("/home/girschic/proj/AZ/ProjDev/train_scramble.tab")
+#               trainData.save("/home/girschic/proj/AZ/ProjDev/train_scramble.tab")
                 testData = self.data.select(DataIdxs[foldN])
 		self.__log("test empty created")
 		
