@@ -393,7 +393,6 @@ class UnbiasedAccuracyGetter():
 			trainData = dataUtilities.yscrambleData(trainData)
 #               trainData.save("/home/girschic/proj/AZ/ProjDev/train_scramble.tab")
                 testData = self.data.select(DataIdxs[foldN])
-		self.__log("test empty created")
 		
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
