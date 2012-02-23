@@ -389,6 +389,7 @@ class UnbiasedAccuracyGetter():
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
 #		trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
 		if (yscramble):
+			self.__log("Applying Y-Scrambling to training data")
 			trainData = dataUtilities.yscrambleData(trainData)
 #               trainData.save("/home/girschic/proj/AZ/ProjDev/train_scramble.tab")
                 testData = self.data.select(DataIdxs[foldN])
