@@ -24,6 +24,18 @@ DKlist = ["~","*","MIS_VAL"]
 DK = "~"
 
 
+def yscrambleData(data):
+    """ applies Y-scrambing/Y-randomization to the data. Class values are randomly shuffled """
+    c = [] 
+    for d in data:
+	c.append(d.getclass())
+    random.shuffle(c)
+
+    for i in range(len(data)):
+	data[i].setclass(c[i])		    
+    return data
+
+
 def getIsMissing(ex):
     """Returns True if any value in the example object is missing."""
     isMissing = False
