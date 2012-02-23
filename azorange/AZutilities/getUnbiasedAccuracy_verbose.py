@@ -12,7 +12,7 @@ import os,random
 from pprint import pprint
 import statc
 import traceback
-from AZutilities import getStructuralDesc
+from AZutilities import getStructuralDesc_old
 from AZutilities import structuralClustering
 from AZutilities import SimBoostedQSAR
 from AZutilities import getCinfonyDesc
@@ -380,7 +380,7 @@ class UnbiasedAccuracyGetter():
 
 				else:
 					self.__log("Algorithm " +str(i) + ": " + str(algorithm[i]))
-			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm[i], params['minsup'])
+			               	trainData_structDesc = getStructuralDesc_old.getStructuralDescResult(trainData, algorithm[i], params['minsup'])
 					self.__log("HEY")
 					if (i == (len(algorithm)-1)):
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
@@ -423,7 +423,7 @@ class UnbiasedAccuracyGetter():
 					cut_off = orig_len - len(atts)
 		                	smarts = trainData.domain.attributes[cut_off:]
                 			self.__log("  Number of structural features added: "+str(len(smarts)))
-	        		        testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
+	        		        testData_structDesc = getStructuralDesc_old.getSMARTSrecalcDesc(testData,smarts)
 					if (i == (len(algorithm)-1)):
 						testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
 					else:
@@ -707,7 +707,7 @@ class UnbiasedAccuracyGetter():
                 orig_len = len(trainData.domain.attributes)
                 # add structural descriptors to the training data (TG)
                 if (algorithm):
-	               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm, minsup)
+	               	trainData_structDesc = getStructuralDesc_old.getStructuralDescResult(trainData, algorithm, minsup)
         	        trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
 
                 
@@ -719,7 +719,7 @@ class UnbiasedAccuracyGetter():
 		        cut_off = orig_len - len(atts)
                 	smarts = trainData.domain.attributes[cut_off:]
                 	self.__log("  Number of structural features added: "+str(len(smarts)))
-	                testData_structDesc = getStructuralDesc.getSMARTSrecalcDesc(testData,smarts)
+	                testData_structDesc = getStructuralDesc_old.getSMARTSrecalcDesc(testData,smarts)
 	                testData = dataUtilities.attributeDeselectionData(testData_structDesc, atts)
                 
                 nTrainEx[ml].append(len(trainData))
