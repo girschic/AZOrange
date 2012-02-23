@@ -11,6 +11,7 @@ import orngTest, orngStat
 import os,random
 from pprint import pprint
 import statc
+import traceback
 from AZutilities import getStructuralDesc
 from AZutilities import structuralClustering
 from AZutilities import SimBoostedQSAR
@@ -133,6 +134,7 @@ class UnbiasedAccuracyGetter():
         res["CM"] = None
         res["MCC"] = None
         res["ROC"] = None
+	res["PROB"] = None
         #Regression
         res["Q2"] = None
         res["RMSE"] = None
@@ -152,7 +154,8 @@ class UnbiasedAccuracyGetter():
                 "CM"   : None,
                 "CA"   : None,
                 "MCC"  : None,
-                "ROC"  : None }
+                "ROC"  : None,
+		"PROB" : None }
         if results is None:# or exp_pred is None or responseType is None or nExtFolds is None or nTestCmpds is None or nTrainCmpds is None:
 	    self.__log("    NONE...")
             return res 
@@ -242,7 +245,7 @@ class UnbiasedAccuracyGetter():
         
         
         
-    def getAcc(self, callBack = None, algorithm = None, params = None, atts = None, holdout = None):
+    def getAcc(self, callBack = None, algorithm = None, params = None, atts = None, holdout = None, yscramble = False):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"Q2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -303,6 +306,7 @@ class UnbiasedAccuracyGetter():
 
         models={}
         rocs={}
+	probs={}
         self.__log("Calculating Statistics for MLmethods:")
         self.__log("  "+str([x for x in MLmethods]))
 
@@ -383,8 +387,10 @@ class UnbiasedAccuracyGetter():
 						self.__log("HEYHO")
 					else:
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
-
-#                trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
+		trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
+		if (yscramble):
+			trainData = dataUtilities.yscrambleData(trainData)
+                trainData.save("/home/girschic/proj/AZ/ProjDev/train_scramble.tab")
                 testData = self.data.select(DataIdxs[foldN])
 		self.__log("test empty created")
 		
@@ -491,9 +497,9 @@ class UnbiasedAccuracyGetter():
                     results[ml].append((evalUtilities_verbose.getClassificationAccuracy(testData, model), evalUtilities.getConfMat(testData, model) ) )
                     roc = self.aroc(testData, [model])
 		    self.__log("getting class probs")
-		    probs = evalUtilities_verbose.getProbabilities(testData, model)
+		    probs = evalUtilities_verbose.getClassProbabilities(testData, model)
 		    self.__log("Class probabilities")
-		    self.__log(probs)
+		    #print probs
                     rocs[ml].append(roc)                      
                 else:
                     local_exp_pred = []
@@ -519,7 +525,8 @@ class UnbiasedAccuracyGetter():
           except:
 	    print "Unexpected error:",
 	    print sys.exc_info()[0]
-	    print sys.exc_info()[1]
+	    print sys.exc_info()[1]   
+            print str(traceback.extract_tb(sys.exc_info()[2]))
             self.__log("       Learner "+str(ml)+" failed to create/optimize the model!")
             res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
             statistics[ml] = copy.deepcopy(res)
