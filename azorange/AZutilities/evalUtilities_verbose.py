@@ -276,6 +276,18 @@ def calcClassificationAccuracy(exp_pred_Val):
     return ClassificationAccuracy
 
 
+def getClassProbabilities(testData, classifier):
+    #
+    if not len(testData):
+	self.__log("	bad test data")
+	return None
+    probs = []
+    for i in range(len(testData)):
+	p = classifier(testData[i], resultType=orange.GetProbabilities)
+	probs.append(p)
+	print "%d: %5.3f (originally %s)" % (i+1, p[1], testData[i].getclass())
+    return probs
+
 def getRMSE(testData, predictor):
     #Construct the list of experimental and predicted values: [(exp1, pred1), (exp2, pred2), ...]
     exp_pred = []
