@@ -284,8 +284,9 @@ def getClassProbabilities(testData, classifier):
     probs = []
     for i in range(len(testData)):
 	p = classifier(testData[i], resultType=orange.GetProbabilities)
-	probs.append(p)
+	probs.append(p[1])
 #	print "%d: %5.3f (originally %s)" % (i+1, p[1], testData[i].getclass())
+ #   print probs	
     return probs
 
 def getRMSE(testData, predictor):
