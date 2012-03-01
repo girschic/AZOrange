@@ -282,12 +282,14 @@ def getClassProbabilities(testData, classifier):
 	self.__log("	bad test data")
 	return None
     probs = []
+    classes = []
     for i in range(len(testData)):
 	p = classifier(testData[i], resultType=orange.GetProbabilities)
 	probs.append(p[1])
+	classes.append(testData[i].getclass())
 #	print "%d: %5.3f (originally %s)" % (i+1, p[1], testData[i].getclass())
  #   print probs	
-    return probs
+    return probs, classes
 
 def getRMSE(testData, predictor):
     #Construct the list of experimental and predicted values: [(exp1, pred1), (exp2, pred2), ...]

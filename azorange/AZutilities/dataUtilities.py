@@ -132,9 +132,9 @@ def SeedDataSampler(data, nFolds):
 
 
 
-def SeedDataSampler_holdOut(data, trainFraction):
+def SeedDataSampler_holdOut(data, trainFraction, seed = None):
     """ Samples the data for being used in hold out: 
-	randomly selects trainFraction (e.g. 0.66) instances randomly for training, the rest remains for testing
+        randomly selects trainFraction (e.g. 0.66) instances randomly for training, the rest remains for testing
         Outputs the respective "fold" indices like in the CV case, not the actual data. 
         Output example:
                 [[0 0 1 1 0 1 0 0 0]]
@@ -149,6 +149,7 @@ def SeedDataSampler_holdOut(data, trainFraction):
     """
     if not data or not trainFraction:
         return None
+
     nEx = len(data)
     nTrainEx = int(nEx*trainFraction)
     nTestEx = nEx - nTrainEx
@@ -160,7 +161,10 @@ def SeedDataSampler_holdOut(data, trainFraction):
     for n in range(nFolds):
         foldsIdxs.append([0] * nEx)
 
-    random.seed()
+    if seed:
+        random.seed(seed)
+    else:
+        random.seed()
     for x in range(nTestEx):
         Zidx = int(random.random() * (usedReg.count(0) - 1))
            #Find the index of the Zidx'th Zero  
@@ -170,6 +174,7 @@ def SeedDataSampler_holdOut(data, trainFraction):
 
 #    print foldsIdxs
     return foldsIdxs
+
 
 
 
