@@ -376,16 +376,13 @@ class UnbiasedAccuracyGetter():
 				else:
 					self.__log("Algorithm " +str(i) + ": " + str(algorithm[i]))
 			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm[i], params['minsup'])
-					self.__log("HEY")
 					if (i == (len(algorithm)-1)):
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
-						self.__log("HEYHO")
 					else:
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
 
 #                trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
                 testData = self.data.select(DataIdxs[foldN])
-		self.__log("test empty created")
 		
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
@@ -406,10 +403,8 @@ class UnbiasedAccuracyGetter():
 						tmp_dat.append(tmp)
 					testData_ecfp = orange.ExampleTable(tmp_dat[0].domain, tmp_dat)
 					if (i == (len(algorithm)-1)):
-#						print "removing atts"
 						testData = dataUtilities.attributeDeselectionData(testData_ecfp, atts)
 					else:
-#						print "removing no atts"
 						testData = dataUtilities.attributeDeselectionData(testData_ecfp, [])
 
 				else:
@@ -511,9 +506,9 @@ class UnbiasedAccuracyGetter():
             self.__writeResults(statistics)
             self.__log("       OK")
           except:
-	    print "Unexpected error:",
-	    print sys.exc_info()[0]
-	    print sys.exc_info()[1]
+	#    print "Unexpected error:",
+	 #   print sys.exc_info()[0]
+	  #  print sys.exc_info()[1]
             self.__log("       Learner "+str(ml)+" failed to create/optimize the model!")
             res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
             statistics[ml] = copy.deepcopy(res)
