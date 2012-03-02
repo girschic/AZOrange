@@ -338,6 +338,7 @@ class UnbiasedAccuracyGetter():
 
 
                 trainData = self.data.select(DataIdxs[foldN],negate=1)
+		trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
                 orig_len = len(trainData.domain.attributes)
 		refs = None
 		methods = ['rdk_MACCS_keys', 'rdk_topo_fps', 'rdk_morgan_fps', 'rdk_morgan_features_fps', 'rdk_atompair_fps']
@@ -375,13 +376,17 @@ class UnbiasedAccuracyGetter():
 				else:
 					self.__log("Algorithm " +str(i) + ": " + str(algorithm[i]))
 			               	trainData_structDesc = getStructuralDesc.getStructuralDescResult(trainData, algorithm[i], params['minsup'])
+					self.__log("HEY")
 					if (i == (len(algorithm)-1)):
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, atts)
+						self.__log("HEYHO")
 					else:
 						trainData = dataUtilities.attributeDeselectionData(trainData_structDesc, [])
 
-                #trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
+#                trainData.save("/home/girschic/proj/AZ/ProjDev/train.tab")
                 testData = self.data.select(DataIdxs[foldN])
+		self.__log("test empty created")
+		
                 # calculate the feature values for the test data (TG)
                 if (algorithm):
 			for i in range(len(algorithm)):
