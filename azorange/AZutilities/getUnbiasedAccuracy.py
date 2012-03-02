@@ -124,7 +124,7 @@ class UnbiasedAccuracyGetter():
                     return False
         return True
 
-    def createStatObj(self, results=None, exp_pred=None, nTrainCmpds=None, nTestCmpds=None, responseType=None, nExtFolds=None, userAlert = "", rocs=None):
+    def createStatObj(self, results=None, exp_pred=None, nTrainCmpds=None, nTestCmpds=None, responseType=None, nExtFolds=None, userAlert = "", rocs=None, probs=None, cla_tst=None):
         #Initialize res (statObj) for statistic results
         res = {}
         self.__log("Starting to create Stat Obj")
@@ -133,7 +133,8 @@ class UnbiasedAccuracyGetter():
         res["CM"] = None
         res["MCC"] = None
         res["ROC"] = None
-        res["PROB"] = None
+	res["PROB"] = None
+	res["CLASS_TST"] = None
         #Regression
         res["Q2"] = None
         res["RMSE"] = None
@@ -154,7 +155,8 @@ class UnbiasedAccuracyGetter():
                 "CA"   : None,
                 "MCC"  : None,
                 "ROC"  : None,
-        	"PROB" : None }
+		"PROB" : None,
+		"CLASS_TST" : None }
         if results is None:# or exp_pred is None or responseType is None or nExtFolds is None or nTestCmpds is None or nTrainCmpds is None:
 	    self.__log("    NONE...")
             return res 
@@ -173,6 +175,9 @@ class UnbiasedAccuracyGetter():
             res["MCC"] = evalUtilities.calcMCC(res["CM"])
             #Compute ROC
             res["ROC"] = sum(ro[0] for ro in rocs) / self.nExtFolds
+	    #class probabilities and real class values for test set
+	    res["PROB"] = None
+	    res["CLASS_TST"] = None
             #Compute foldStat
             res["foldStat"]["nTrainCmpds"] = [n for n in nTrainCmpds]
             res["foldStat"]["nTestCmpds"] = [n for n in nTestCmpds]
@@ -180,6 +185,9 @@ class UnbiasedAccuracyGetter():
             res["foldStat"]["CM"] = [r[1] for r in results]
             res["foldStat"]["MCC"] = [evalUtilities.calcMCC(r[1]) for r in results]
             res["foldStat"]["ROC"] = [ro for ro in rocs]
+	    #class probabilities for test set (only in folds)
+	    res["foldStat"]["PROB"] = [p for p in probs]
+	    res["foldStat"]["CLASS_TST"] = [c for c in cla_tst]
             #Compute Stability
             res["StabilityValue"] = evalUtilities.stability(res["foldStat"]["CA"])
         else:
@@ -244,7 +252,7 @@ class UnbiasedAccuracyGetter():
         
         
         
-    def getAcc(self, callBack = None, algorithm = None, params = None, atts = None, holdout = None, yscramble = False):
+    def getAcc(self, callBack = None, algorithm = None, params = None, atts = None, holdout = None, holdout_seed = None, yscramble = False):
         """ For regression problems, it returns the RMSE and the Q2 
             For Classification problems, it returns CA and the ConfMat
             The return is made in a Dict: {"RMSE":0.2,"Q2":0.1,"CA":0.98,"CM":[[TP, FP],[FN,TN]]}
@@ -284,7 +292,7 @@ class UnbiasedAccuracyGetter():
 	DataIdxs = None
 	if (holdout):
 	    self.__log("Using hold out evaluation with " + str(holdout) + "*100 % of data for training")
-	    DataIdxs = dataUtilities.SeedDataSampler_holdOut(self.data, holdout)
+	    DataIdxs = dataUtilities.SeedDataSampler_holdOut(self.data, holdout, seed=holdout_seed)
 	else:
             DataIdxs = dataUtilities.SeedDataSampler(self.data, self.nExtFolds) 
         
@@ -306,6 +314,7 @@ class UnbiasedAccuracyGetter():
         models={}
         rocs={}
 	probs={}
+	classes_tst={}
         self.__log("Calculating Statistics for MLmethods:")
         self.__log("  "+str([x for x in MLmethods]))
 
@@ -331,6 +340,9 @@ class UnbiasedAccuracyGetter():
             exp_pred[ml] = []
             models[ml] = []
             rocs[ml] = []
+	    probs[ml] = []
+	    classes_tst[ml] = []
+
             nTrainEx[ml] = []
             nTestEx[ml] = []
             optAcc[ml] = []
@@ -490,10 +502,11 @@ class UnbiasedAccuracyGetter():
                 if self.responseType == "Classification":
                     results[ml].append((evalUtilities.getClassificationAccuracy(testData, model), evalUtilities.getConfMat(testData, model) ) )
                     roc = self.aroc(testData, [model])
-		  #  self.__log("getting class probs")
-		    probs = evalUtilities_verbose.getClassProbabilities(testData, model)
-		   # self.__log("Class probabilities")
-		    #print probs
+		    prob, cla = evalUtilities_verbose.getClassProbabilities(testData, model)
+		    probs[ml].append(prob)
+		    classes_tst[ml].append(cla)
+
+
                     rocs[ml].append(roc)                      
                 else:
                     local_exp_pred = []
@@ -506,7 +519,7 @@ class UnbiasedAccuracyGetter():
                      stepsDone += 1
                      if not callBack((100*stepsDone)/nTotalSteps): return None
 	   
-            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
+            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml], probs[ml], classes_tst[ml])
 
             if self.verbose > 0: 
                 print "UnbiasedAccuracyGetter!Results  "+ml+":\n"
@@ -522,7 +535,7 @@ class UnbiasedAccuracyGetter():
 	    print sys.exc_info()[1]   
             print str(traceback.extract_tb(sys.exc_info()[2]))
             self.__log("       Learner "+str(ml)+" failed to create/optimize the model!")
-            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml])
+            res = self.createStatObj(results[ml], exp_pred[ml], nTrainEx[ml], nTestEx[ml],self.responseType, self.nExtFolds, logTxt, rocs[ml], probs[ml], classes_tst[ml])
             statistics[ml] = copy.deepcopy(res)
             self.__writeResults(statistics)
 
